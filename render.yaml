@@ -34,6 +34,9 @@ services:
       - key: DATABASE_URL
         sync: false         # Marks as secret — must be set manually in Render UI
 
+      - key: DIRECT_URL
+        sync: false         # Used by Prisma Migrate (transaction pooler)
+
       - key: frontend_URL
         sync: false         # e.g. https://khedma-ai.netlify.app
 

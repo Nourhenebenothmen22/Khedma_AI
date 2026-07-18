@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
+import { AppError } from './errors.js';
 
 /**
  * Validates the Express request body against a Zod schema.
@@ -13,16 +14,15 @@ export function validateBody(schema: ZodSchema) {
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({
-          error: 'Input validation failed',
-          details: error.issues.map((err: any) => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
-        });
+        const details = error.issues.map((err: any) => ({
+          field: err.path.join('.'),
+          message: err.message
+        }));
+        next(new AppError(400, 'Input validation failed', details));
         return;
       }
       next(error);
     }
   };
 }
+

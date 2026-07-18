@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createJob,
@@ -39,6 +39,7 @@ export function useJobGenerator({
   // Generator Streaming / State
   const [isGenerating, setIsGenerating] = useState(false);
   const streamBufferRef = useRef('');
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [generatedSections, setGeneratedSections] = useState<Record<string, any>>({});
   const [activeGeneratingModel, setActiveGeneratingModel] = useState('');
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
@@ -70,8 +71,40 @@ export function useJobGenerator({
     }
   });
 
-  const handleGenerate = async () => {
+  const handleCancelGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsGenerating(false);
+    addToast('Generation cancelled', 'info');
+  }, [addToast]);
+
+  const autoSaveDraft = useCallback((sections: Record<string, any>) => {
+    if (!sections.title) return;
+    const jobPayload: Partial<JobDescription> = {
+      title: sections.title,
+      seniority,
+      location: location || 'Remote',
+      workType,
+      employmentType,
+      language: activeSettings?.language || 'en',
+      tone,
+      sections: sections,
+      atsKeywords: sections.atsKeywords || [],
+      isDraft: true
+    };
+    saveJobMutation.mutate(jobPayload);
+  }, [seniority, location, workType, employmentType, activeSettings?.language, tone, saveJobMutation]);
+
+  const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || !sectionsSchema) return;
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     setIsGenerating(true);
     streamBufferRef.current = '';
@@ -114,41 +147,33 @@ export function useJobGenerator({
             addToast(`Generation failed: ${event.error}`, 'error');
             setIsGenerating(false);
           }
-        }
+        },
+        controller.signal
       );
     } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Stream generation aborted.');
+        return;
+      }
       addToast(`Connection failed: ${error.message || error}`, 'error');
       setIsGenerating(false);
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
     }
-  };
+  }, [prompt, sectionsSchema, seniority, location, workType, employmentType, tone, addToast, autoSaveDraft]);
 
-  const autoSaveDraft = (sections: Record<string, any>) => {
-    if (!sections.title) return;
-    const jobPayload: Partial<JobDescription> = {
-      title: sections.title,
-      seniority,
-      location: location || 'Remote',
-      workType,
-      employmentType,
-      language: activeSettings?.language || 'en',
-      tone,
-      sections: sections,
-      atsKeywords: sections.atsKeywords || [],
-      isDraft: true
-    };
-    saveJobMutation.mutate(jobPayload);
-  };
-
-  const handleEditSection = (key: string, value: any) => {
+  const handleEditSection = useCallback((key: string, value: any) => {
     setEditingSection(key);
     if (Array.isArray(value)) {
       setEditValue(value.join('\n'));
     } else {
       setEditValue(value || '');
     }
-  };
+  }, []);
 
-  const handleSaveSection = (key: string) => {
+  const handleSaveSection = useCallback((key: string) => {
     let updatedValue: any = editValue;
     const sectionSchema = sectionsSchema?.find((s) => s.key === key);
 
@@ -175,9 +200,9 @@ export function useJobGenerator({
       };
       saveJobMutation.mutate(jobPayload);
     }
-  };
+  }, [editValue, sectionsSchema, generatedSections, activeJobId, saveJobMutation]);
 
-  const handleRefiningAction = async (
+  const handleRefiningAction = useCallback(async (
     key: string,
     action: 'improve' | 'expand' | 'shorten' | 'inclusive'
   ) => {
@@ -231,22 +256,29 @@ export function useJobGenerator({
     } finally {
       setIsRefining(null);
     }
-  };
+  }, [generatedSections, sectionsSchema, activeJobId, saveJobMutation, addToast, t]);
 
-  const handleToggleFavorite = () => {
+  const handleToggleFavorite = useCallback(() => {
     if (!activeJobId) return;
     const isFav = !jobs?.find((j) => j.id === activeJobId)?.isFavorite;
     saveJobMutation.mutate({ isFavorite: isFav });
-  };
+  }, [activeJobId, jobs, saveJobMutation]);
 
-  const copyToClipboard = (text: string, key: string) => {
+  const handleSaveFinal = useCallback(() => {
+    if (!activeJobId) return;
+    const currentJob = jobs?.find((j) => j.id === activeJobId);
+    const newDraftStatus = currentJob?.isDraft === false; // toggle back to draft, or finalize
+    saveJobMutation.mutate({ isDraft: newDraftStatus });
+  }, [activeJobId, jobs, saveJobMutation]);
+
+  const copyToClipboard = useCallback((text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedSection(key);
     addToast('Copied to clipboard', 'info');
     setTimeout(() => setCopiedSection(null), 2000);
-  };
+  }, [addToast]);
 
-  const copyAllText = () => {
+  const copyAllText = useCallback(() => {
     if (!generatedSections.title || !sectionsSchema) return;
 
     const formatSection = (title: string, val: any) => {
@@ -270,9 +302,9 @@ export function useJobGenerator({
     setCopiedAll(true);
     addToast('All content copied to clipboard', 'success');
     setTimeout(() => setCopiedAll(false), 2000);
-  };
+  }, [generatedSections, sectionsSchema, i18n.language, addToast]);
 
-  const openDraftState = (job: JobDescription) => {
+  const openDraftState = useCallback((job: JobDescription) => {
     setActiveJobId(job.id);
     setPrompt(job.title);
     setSeniority(job.seniority);
@@ -281,14 +313,14 @@ export function useJobGenerator({
     setEmploymentType(job.employmentType);
     setTone(job.tone);
     setGeneratedSections(job.sections);
-  };
+  }, []);
 
-  const resetGenerator = () => {
+  const resetGenerator = useCallback(() => {
     setPrompt('');
     setGeneratedSections({});
     setActiveJobId(null);
     setEditingSection(null);
-  };
+  }, []);
 
   return {
     prompt,
@@ -317,10 +349,12 @@ export function useJobGenerator({
     copiedSection,
     copiedAll,
     handleGenerate,
+    handleCancelGeneration,
     handleEditSection,
     handleSaveSection,
     handleRefiningAction,
     handleToggleFavorite,
+    handleSaveFinal,
     copyToClipboard,
     copyAllText,
     openDraftState,

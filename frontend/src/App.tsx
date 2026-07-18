@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -33,6 +33,16 @@ import GeneratorView from './components/generator/GeneratorView.js';
 // Custom Hook Import
 import { useJobGenerator } from './hooks/useJobGenerator.js';
 
+const getLanguageInfo = (lang: string) => {
+  if (!lang) return { code: 'us', label: 'English' };
+  const baseLang = lang.split('-')[0].toLowerCase();
+  switch (baseLang) {
+    case 'fr': return { code: 'fr', label: 'French' };
+    case 'ar': return { code: 'sa', label: 'العربية' };
+    default: return { code: 'us', label: 'English' };
+  }
+};
+
 export default function App() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -53,17 +63,17 @@ export default function App() {
     onConfirm: () => void;
   } | null>(null);
 
-  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3500);
-  };
+  }, []);
 
-  const triggerConfirm = (title: string, message: string, onConfirm: () => void) => {
+  const triggerConfirm = useCallback((title: string, message: string, onConfirm: () => void) => {
     setConfirmModal({ isOpen: true, title, message, onConfirm });
-  };
+  }, []);
 
   // Close language popup on click outside
   useEffect(() => {
@@ -125,7 +135,7 @@ export default function App() {
   const [isPending, setIsPending] = useState(false);
 
   // Settings updating handler
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = useCallback(async () => {
     setIsPending(true);
     try {
       await updateSettings({
@@ -140,7 +150,7 @@ export default function App() {
     } finally {
       setIsPending(false);
     }
-  };
+  }, [selectedProvider, selectedModel, selectedAiLanguage, queryClient, addToast, t]);
 
   const deleteJobMutation = useMutation({
     mutationFn: deleteJob,
@@ -154,9 +164,9 @@ export default function App() {
     }
   });
 
-  const triggerPrint = () => {
+  const triggerPrint = useCallback(() => {
     window.print();
-  };
+  }, []);
 
   // Consume extracted custom hook for job generation
   const generator = useJobGenerator({
@@ -168,30 +178,22 @@ export default function App() {
     i18n
   });
 
-  const handleOpenDraft = (job: JobDescription) => {
-    generator.openDraftState(job);
-    setActiveTab('generator');
-  };
+  const { openDraftState, resetGenerator } = generator;
 
-  const handleResetGenerator = () => {
-    generator.resetGenerator();
+  const handleOpenDraft = useCallback((job: JobDescription) => {
+    openDraftState(job);
     setActiveTab('generator');
-  };
+  }, [openDraftState]);
 
-  const changeLanguage = (lang: string) => {
+  const handleResetGenerator = useCallback(() => {
+    resetGenerator();
+    setActiveTab('generator');
+  }, [resetGenerator]);
+
+  const changeLanguage = useCallback((lang: string) => {
     i18n.changeLanguage(lang);
     setLangOpen(false);
-  };
-
-  const getLanguageInfo = (lang: string) => {
-    if (!lang) return { code: 'us', label: 'English' };
-    const baseLang = lang.split('-')[0].toLowerCase();
-    switch (baseLang) {
-      case 'fr': return { code: 'fr', label: 'French' };
-      case 'ar': return { code: 'sa', label: 'العربية' };
-      default: return { code: 'us', label: 'English' };
-    }
-  };
+  }, [i18n]);
 
   const isRtl = i18n.language === 'ar';
   const uiLang = i18n.language as 'en' | 'fr' | 'ar';
@@ -454,6 +456,8 @@ export default function App() {
                 copyToClipboard={generator.copyToClipboard}
                 copiedSection={generator.copiedSection}
                 onGenerate={generator.handleGenerate}
+                onCancelGeneration={generator.handleCancelGeneration}
+                onSaveFinal={generator.handleSaveFinal}
                 t={t}
                 uiLang={uiLang}
                 isRtl={isRtl}

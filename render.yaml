@@ -52,3 +52,6 @@ services:
 
       - key: MISTRAL_API_KEY
         sync: false
+
+      - key: OPENROUTER_API_KEY
+        sync: false

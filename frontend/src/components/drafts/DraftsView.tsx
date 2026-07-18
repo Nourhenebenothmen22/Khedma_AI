@@ -47,9 +47,7 @@ export default function DraftsView({ jobs, openDraft, onDeleteJob, t }: DraftsVi
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm('Delete this draft permanently?')) {
-                      onDeleteJob(job.id);
-                    }
+                    onDeleteJob(job.id);
                   }}
                   className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 transition-colors"
                 >

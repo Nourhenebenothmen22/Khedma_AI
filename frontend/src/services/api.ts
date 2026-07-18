@@ -1,5 +1,13 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
+async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const headers = {
+    ...options.headers,
+    'Authorization': 'Bearer mock-dev-token-khedma'
+  };
+  return fetch(url, { ...options, headers });
+}
+
 export interface JobDescription {
   id: string;
   title: string;
@@ -92,7 +100,7 @@ export interface RefineParams {
  * Fetch dynamic schema layout from the backend
  */
 export async function getSectionsSchema(): Promise<JobDescriptionSectionSchema[]> {
-  const res = await fetch(`${API_BASE_URL}/ai/schema`);
+  const res = await authFetch(`${API_BASE_URL}/ai/schema`);
   if (!res.ok) throw new Error('Failed to fetch sections schema');
   const data = await res.json();
   return data.schema || [];
@@ -102,7 +110,7 @@ export async function getSectionsSchema(): Promise<JobDescriptionSectionSchema[]
  * Fetch dynamic AI providers & models list
  */
 export async function getProviders(): Promise<ProviderInfo[]> {
-  const res = await fetch(`${API_BASE_URL}/ai/providers`);
+  const res = await authFetch(`${API_BASE_URL}/ai/providers`);
   if (!res.ok) throw new Error('Failed to fetch providers configuration');
   const data = await res.json();
   return data.providers || [];
@@ -112,7 +120,7 @@ export async function getProviders(): Promise<ProviderInfo[]> {
  * Fetch active AI Settings (provider, model, target language)
  */
 export async function getSettings(): Promise<AISettings> {
-  const res = await fetch(`${API_BASE_URL}/ai/settings`);
+  const res = await authFetch(`${API_BASE_URL}/ai/settings`);
   if (!res.ok) throw new Error('Failed to fetch AI settings');
   return res.json();
 }
@@ -121,7 +129,7 @@ export async function getSettings(): Promise<AISettings> {
  * Update active AI Settings
  */
 export async function updateSettings(settings: AISettings): Promise<AISettings> {
-  const res = await fetch(`${API_BASE_URL}/ai/settings`, {
+  const res = await authFetch(`${API_BASE_URL}/ai/settings`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings)
@@ -139,7 +147,7 @@ export async function getJobs(filters?: { isFavorite?: boolean; isDraft?: boolea
   if (filters?.isFavorite !== undefined) query.append('isFavorite', String(filters.isFavorite));
   if (filters?.isDraft !== undefined) query.append('isDraft', String(filters.isDraft));
   
-  const res = await fetch(`${API_BASE_URL}/jobs?${query}`);
+  const res = await authFetch(`${API_BASE_URL}/jobs?${query}`);
   if (!res.ok) throw new Error('Failed to fetch jobs');
   const data = await res.json();
   return data.jobs || [];
@@ -149,7 +157,7 @@ export async function getJobs(filters?: { isFavorite?: boolean; isDraft?: boolea
  * Fetch a single job by id
  */
 export async function getJobById(id: string): Promise<JobDescription> {
-  const res = await fetch(`${API_BASE_URL}/jobs/${id}`);
+  const res = await authFetch(`${API_BASE_URL}/jobs/${id}`);
   if (!res.ok) throw new Error('Failed to fetch job');
   const data = await res.json();
   return data.job;
@@ -159,7 +167,7 @@ export async function getJobById(id: string): Promise<JobDescription> {
  * Create a new job description
  */
 export async function createJob(job: Partial<JobDescription>): Promise<JobDescription> {
-  const res = await fetch(`${API_BASE_URL}/jobs`, {
+  const res = await authFetch(`${API_BASE_URL}/jobs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(job),
@@ -173,7 +181,7 @@ export async function createJob(job: Partial<JobDescription>): Promise<JobDescri
  * Update an existing job description
  */
 export async function updateJob(id: string, job: Partial<JobDescription>): Promise<JobDescription> {
-  const res = await fetch(`${API_BASE_URL}/jobs/${id}`, {
+  const res = await authFetch(`${API_BASE_URL}/jobs/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(job),
@@ -187,7 +195,7 @@ export async function updateJob(id: string, job: Partial<JobDescription>): Promi
  * Delete a job description
  */
 export async function deleteJob(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/jobs/${id}`, {
+  const res = await authFetch(`${API_BASE_URL}/jobs/${id}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete job');
@@ -197,7 +205,7 @@ export async function deleteJob(id: string): Promise<void> {
  * Fetch dashboard stats
  */
 export async function getStats(): Promise<DashboardStats> {
-  const res = await fetch(`${API_BASE_URL}/stats`);
+  const res = await authFetch(`${API_BASE_URL}/stats`);
   if (!res.ok) throw new Error('Failed to fetch stats');
   return res.json();
 }
@@ -206,7 +214,7 @@ export async function getStats(): Promise<DashboardStats> {
  * Refine a specific section using AI
  */
 export async function refineSection(params: RefineParams): Promise<string> {
-  const res = await fetch(`${API_BASE_URL}/ai/refine-section`, {
+  const res = await authFetch(`${API_BASE_URL}/ai/refine-section`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -221,14 +229,16 @@ export async function refineSection(params: RefineParams): Promise<string> {
  */
 export async function generateJobStream(
   params: GenerateParams,
-  onEvent: (event: { status?: string; chunk?: string; provider?: string; model?: string; language?: string; error?: string }) => void
+  onEvent: (event: { status?: string; chunk?: string; provider?: string; model?: string; language?: string; error?: string }) => void,
+  signal?: AbortSignal
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/ai/generate`, {
+  const response = await authFetch(`${API_BASE_URL}/ai/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(params),
+    signal
   });
 
   if (!response.ok) {
@@ -259,7 +269,7 @@ export async function generateJobStream(
         try {
           const parsed = JSON.parse(cleanLine.slice(6));
           onEvent(parsed);
-        } catch (e) {
+        } catch {
           // ignore parsing error of incomplete events
         }
       }

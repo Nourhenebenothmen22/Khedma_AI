@@ -6,6 +6,15 @@ import jobsRouter from './routes/jobs.routes.js';
 import statsRouter from './routes/stats.routes.js';
 import { logger } from './config/logger.js';
 
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
+
 dotenv.config();
 
 const app = express();
@@ -58,9 +67,10 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(status).json({ error: message });
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`🚀 Server started on port ${PORT}`);
+// Start Server (bind to all interfaces: required for Render & containerized environments)
+const HOST = process.env.HOST || '0.0.0.0';
+app.listen(Number(PORT), HOST, () => {
+  console.log(`🚀 Server started on ${HOST}:${PORT}`);
   console.log(`🔗 Allowed origin: ${frontend_URL}`);
 });
 

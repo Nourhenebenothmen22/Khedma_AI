@@ -454,6 +454,8 @@ export default function App() {
                 copyToClipboard={generator.copyToClipboard}
                 copiedSection={generator.copiedSection}
                 onGenerate={generator.handleGenerate}
+                onCancelGeneration={generator.handleCancelGeneration}
+                onSaveFinal={generator.handleSaveFinal}
                 t={t}
                 uiLang={uiLang}
                 isRtl={isRtl}

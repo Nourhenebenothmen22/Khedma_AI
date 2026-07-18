@@ -37,6 +37,8 @@ interface GeneratorViewProps {
   copyToClipboard: (text: string, key: string) => void;
   copiedSection: string | null;
   onGenerate: () => void;
+  onCancelGeneration?: () => void;
+  onSaveFinal?: () => void;
   t: (key: string) => string;
   uiLang: 'en' | 'fr' | 'ar';
   isRtl: boolean;
@@ -77,6 +79,8 @@ export default function GeneratorView({
   copyToClipboard,
   copiedSection,
   onGenerate,
+  onCancelGeneration,
+  onSaveFinal,
   t,
   uiLang,
   isRtl
@@ -193,6 +197,15 @@ export default function GeneratorView({
               </>
             )}
           </button>
+
+          {isGenerating && onCancelGeneration && (
+            <button
+              onClick={onCancelGeneration}
+              className="w-full bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase tracking-wider py-3 rounded-xl shadow-md shadow-red-500/10 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+            >
+              Cancel Generation
+            </button>
+          )}
         </div>
       </div>
 
@@ -235,6 +248,17 @@ export default function GeneratorView({
                 >
                   <Star size={12} fill={currentJob?.isFavorite ? 'currentColor' : 'none'} />
                   <span>{t('generator.canvas.favorite')}</span>
+                </button>
+              )}
+              {activeJobId && (
+                <button
+                  onClick={onSaveFinal}
+                  className={`px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                    currentJob?.isDraft === false ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'text-slate-600'
+                  }`}
+                >
+                  <Check size={12} className={currentJob?.isDraft === false ? 'text-emerald-600' : ''} />
+                  <span>{currentJob?.isDraft === false ? 'Saved as Template' : 'Save as Template'}</span>
                 </button>
               )}
             </div>

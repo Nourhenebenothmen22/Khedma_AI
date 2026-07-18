@@ -1,10 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import aiRouter from './routes/ai.routes.js';
 import jobsRouter from './routes/jobs.routes.js';
 import statsRouter from './routes/stats.routes.js';
 import { logger } from './config/logger.js';
+import { prisma } from './config/db.js';
 
 process.on('uncaughtException', (err) => {
   console.error('UNCAUGHT EXCEPTION:', err);
@@ -18,6 +21,8 @@ process.on('unhandledRejection', (reason) => {
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1);
+app.use(helmet());
 const PORT = process.env.PORT || 5000;
 const frontend_URL = process.env.frontend_URL || 'http://localhost:5173';
 
@@ -35,6 +40,15 @@ app.use(express.json());
 // Main entry route
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'AI Job Description Generator Backend is running.' });
+});
+
+// Configure AI rate limiter
+const aiRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // Limit each IP to 5 requests per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again after a minute.' }
 });
 
 // Configure API endpoints
@@ -69,9 +83,55 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // Start Server (bind to all interfaces: required for Render & containerized environments)
 const HOST = process.env.HOST || '0.0.0.0';
-app.listen(Number(PORT), HOST, () => {
-  console.log(`🚀 Server started on ${HOST}:${PORT}`);
-  console.log(`🔗 Allowed origin: ${frontend_URL}`);
-});
+let server: any;
+
+if (process.env.NODE_ENV !== 'test') {
+  server = app.listen(Number(PORT), HOST, async () => {
+    console.log(`🚀 Server started on ${HOST}:${PORT}`);
+    console.log(`🔗 Allowed origin: ${frontend_URL}`);
+    
+    try {
+      console.log('Testing database connection...');
+      await prisma.$queryRaw`SELECT 1`;
+      console.log('✅ Database connection check successful.');
+    } catch (dbError) {
+      console.error('❌ Database connection check failed on startup:', dbError);
+    }
+  });
+}
+
+// Graceful shutdown handler
+const gracefulShutdown = async (signal: string) => {
+  console.log(`\n⚙️ Received ${signal}. Starting graceful shutdown...`);
+  
+  const disconnectDb = async () => {
+    try {
+      await prisma.$disconnect();
+      console.log('Database client disconnected.');
+      process.exit(0);
+    } catch (err) {
+      console.error('Error during database disconnection:', err);
+      process.exit(1);
+    }
+  };
+
+  if (server) {
+    server.close(async () => {
+      console.log('HTTP server closed.');
+      await disconnectDb();
+    });
+  } else {
+    await disconnectDb();
+  }
+
+  // Force shutdown after 10 seconds if connections are stuck
+  setTimeout(() => {
+    console.error('Force shutdown: could not close all connections within 10s');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 export default app;

@@ -39,6 +39,7 @@ export function useJobGenerator({
   // Generator Streaming / State
   const [isGenerating, setIsGenerating] = useState(false);
   const streamBufferRef = useRef('');
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [generatedSections, setGeneratedSections] = useState<Record<string, any>>({});
   const [activeGeneratingModel, setActiveGeneratingModel] = useState('');
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
@@ -70,8 +71,23 @@ export function useJobGenerator({
     }
   });
 
+  const handleCancelGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsGenerating(false);
+    addToast('Generation cancelled', 'info');
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim() || !sectionsSchema) return;
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     setIsGenerating(true);
     streamBufferRef.current = '';
@@ -114,11 +130,20 @@ export function useJobGenerator({
             addToast(`Generation failed: ${event.error}`, 'error');
             setIsGenerating(false);
           }
-        }
+        },
+        controller.signal
       );
     } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Stream generation aborted.');
+        return;
+      }
       addToast(`Connection failed: ${error.message || error}`, 'error');
       setIsGenerating(false);
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -239,6 +264,13 @@ export function useJobGenerator({
     saveJobMutation.mutate({ isFavorite: isFav });
   };
 
+  const handleSaveFinal = () => {
+    if (!activeJobId) return;
+    const currentJob = jobs?.find((j) => j.id === activeJobId);
+    const newDraftStatus = currentJob?.isDraft === false; // toggle back to draft, or finalize
+    saveJobMutation.mutate({ isDraft: newDraftStatus });
+  };
+
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedSection(key);
@@ -317,10 +349,12 @@ export function useJobGenerator({
     copiedSection,
     copiedAll,
     handleGenerate,
+    handleCancelGeneration,
     handleEditSection,
     handleSaveSection,
     handleRefiningAction,
     handleToggleFavorite,
+    handleSaveFinal,
     copyToClipboard,
     copyAllText,
     openDraftState,

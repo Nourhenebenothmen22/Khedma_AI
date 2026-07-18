@@ -1,7 +1,8 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/db.js';
 import { validateBody } from '../middleware/validate.js';
 import { createJobSchema, updateJobSchema } from '../middleware/schemas.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
@@ -9,7 +10,7 @@ const router = Router();
  * GET /api/v1/jobs
  * List all jobs, optionally filtering by favorites or drafts.
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   const { isFavorite, isDraft } = req.query;
 
   try {
@@ -28,7 +29,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     res.json({ jobs });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch jobs' });
+    next(error);
   }
 });
 
@@ -36,7 +37,7 @@ router.get('/', async (req: Request, res: Response) => {
  * GET /api/v1/jobs/:id
  * Retrieve a specific job description with its full version history.
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   const { id } = req.params;
 
   try {
@@ -56,7 +57,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     res.json({ job });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to fetch job description' });
+    next(error);
   }
 });
 
@@ -65,7 +66,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  * Create and save a new job description.
  * Validates req.body against createJobSchema.
  */
-router.post('/', validateBody(createJobSchema), async (req: Request, res: Response) => {
+router.post('/', validateBody(createJobSchema), async (req: Request, res: Response, next: NextFunction) => {
   const { title, seniority, location, workType, employmentType, language, tone, sections, atsKeywords, isFavorite, isDraft } = req.body;
 
   try {
@@ -93,7 +94,7 @@ router.post('/', validateBody(createJobSchema), async (req: Request, res: Respon
 
     res.status(201).json({ job });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to create job description' });
+    next(error);
   }
 });
 
@@ -102,7 +103,7 @@ router.post('/', validateBody(createJobSchema), async (req: Request, res: Respon
  * Update an existing job description and append a new version to the history.
  * Validates inputs against updateJobSchema and calculates version inside transaction scope.
  */
-router.put('/:id', validateBody(updateJobSchema), async (req: Request, res: Response) => {
+router.put('/:id', validateBody(updateJobSchema), async (req: Request, res: Response, next: NextFunction) => {
   const { id } = req.params;
   const { title, seniority, location, workType, employmentType, language, tone, sections, atsKeywords, isFavorite, isDraft } = req.body;
 
@@ -168,7 +169,7 @@ router.put('/:id', validateBody(updateJobSchema), async (req: Request, res: Resp
       res.status(409).json({ error: 'Save conflict. Another update was processed concurrently. Please retry.' });
       return;
     }
-    res.status(500).json({ error: error.message || 'Failed to update job description' });
+    next(error);
   }
 });
 
@@ -176,7 +177,7 @@ router.put('/:id', validateBody(updateJobSchema), async (req: Request, res: Resp
  * DELETE /api/v1/jobs/:id
  * Delete a job description.
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   const { id } = req.params;
 
   try {
@@ -186,7 +187,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Job description successfully deleted' });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to delete job description' });
+    next(error);
   }
 });
 

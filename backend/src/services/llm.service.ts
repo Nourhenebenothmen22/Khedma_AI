@@ -65,7 +65,7 @@ export class OpenRouterLLMProvider implements LLMProvider {
 
     if (provider === 'openrouter') {
       headers['Authorization'] = `Bearer ${apiKey}`;
-      headers['HTTP-Referer'] = 'http://localhost:5000';
+      headers['HTTP-Referer'] = process.env.frontend_URL || 'http://localhost:5173';
       headers['X-Title'] = 'AI Job Description Generator';
     } else if (provider === 'openai') {
       headers['Authorization'] = `Bearer ${apiKey}`;
@@ -198,7 +198,7 @@ Modify the content accordingly:`;
 
     if (provider === 'openrouter') {
       headers['Authorization'] = `Bearer ${apiKey}`;
-      headers['HTTP-Referer'] = 'http://localhost:5000';
+      headers['HTTP-Referer'] = process.env.frontend_URL || 'http://localhost:5173';
       headers['X-Title'] = 'AI Job Description Generator';
     } else if (provider === 'openai') {
       headers['Authorization'] = `Bearer ${apiKey}`;

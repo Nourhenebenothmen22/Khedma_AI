@@ -1,5 +1,6 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/db.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
@@ -7,7 +8,7 @@ const router = Router();
  * GET /api/v1/stats
  * Return quick stats for the recruiter dashboard.
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const totalGenerations = await prisma.usageStat.count({
       where: { action: 'generate_full' }
@@ -52,7 +53,7 @@ router.get('/', async (req: Request, res: Response) => {
       }))
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to retrieve usage stats' });
+    next(error);
   }
 });
 

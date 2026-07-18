@@ -1,0 +1,81 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Seniority {
+  Junior
+  Mid
+  Senior
+  Lead
+  Executive
+}
+
+enum WorkType {
+  Remote
+  Hybrid
+  Onsite
+}
+
+enum EmploymentType {
+  FullTime   @map("Full-time")
+  PartTime   @map("Part-time")
+  Contract
+  Internship
+}
+
+model JobDescription {
+  id              String               @id @default(uuid())
+  title           String
+  seniority       Seniority            @default(Mid)
+  location        String
+  workType        WorkType             @default(Remote)
+  employmentType  EmploymentType       @default(FullTime)
+  language        String               @default("en")
+  tone            String               @default("professional")
+  sections        Json                 // JSON structure of the job description
+  atsKeywords     String[]             @default([])
+  isFavorite      Boolean              @default(false)
+  isDraft         Boolean              @default(true)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  versions        DescriptionVersion[]
+
+  // Indexes to optimize dashboard searches, listings, and filtering
+  @@index([isDraft])
+  @@index([updatedAt, isFavorite])
+}
+
+model DescriptionVersion {
+  id               String         @id @default(uuid())
+  jobDescriptionId String
+  jobDescription   JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+  versionNumber    Int
+  sections         Json
+  createdAt        DateTime       @default(now())
+
+  // Optimize version lookups for single job descriptions
+  @@index([jobDescriptionId])
+  
+  // Guard against concurrency race conditions in multi-user settings
+  @@unique([jobDescriptionId, versionNumber])
+}
+
+model SystemConfig {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UsageStat {
+  id         String   @id @default(uuid())
+  action     String   // e.g., "generate_full", "refine_section"
+  tokensUsed Int      @default(0)
+  createdAt  DateTime @default(now())
+}

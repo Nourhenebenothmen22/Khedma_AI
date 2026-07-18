@@ -1,0 +1,92 @@
+{
+  "nav": {
+    "dashboard": "Tableau de Bord",
+    "generator": "Générateur IA",
+    "drafts": "Brouillons",
+    "settings": "Configuration IA",
+    "stats": "Statistiques"
+  },
+  "dashboard": {
+    "title": "Espace Recruteur",
+    "subtitle": "Créez, modifiez et optimisez des descriptions de poste professionnelles.",
+    "quickActions": "Actions Rapides",
+    "newJob": "Nouvelle Description",
+    "recentGenerations": "Brouillons Récents",
+    "noDrafts": "Aucun brouillon pour l'instant. Commencez par en générer un !",
+    "viewAll": "Voir tous les brouillons",
+    "stats": {
+      "total": "Générations IA",
+      "refinements": "Ajustements",
+      "active": "Brouillons Actifs",
+      "favorites": "Modèles"
+    }
+  },
+  "generator": {
+    "title": "Générateur de Fiches de Poste IA",
+    "subtitle": "Générez des descriptions de poste complètes et optimisées pour l'ATS en temps réel.",
+    "form": {
+      "promptLabel": "Quel poste recrutez-vous ?",
+      "promptPlaceholder": "ex: Développeur Data Senior spécialisé en AWS et Python",
+      "seniority": "Niveau de Séniorité",
+      "location": "Lieu",
+      "locationPlaceholder": "ex: Paris, télétravail, Hybride",
+      "workType": "Mode de Travail",
+      "employmentType": "Type de Contrat",
+      "tone": "Ton éditorial",
+      "language": "Langue de sortie",
+      "generate": "Générer avec l'IA",
+      "generating": "Génération des sections..."
+    },
+    "canvas": {
+      "title": "Plan de travail interactif",
+      "subtitle": "Les sections se mettent à jour en temps réel au fur et à mesure que l'IA génère.",
+      "empty": "Saisissez les détails du poste et cliquez sur générer pour diffuser votre fiche de poste.",
+      "copyAll": "Copier tout le texte",
+      "copied": "Copié !",
+      "exportPdf": "Exporter en PDF",
+      "saveDraft": "Enregistrer le brouillon",
+      "favorite": "Sauvegarder modèle"
+    },
+    "sections": {
+      "title": "Titre du Poste",
+      "summary": "Résumé Professionnel",
+      "responsibilities": "Responsabilités",
+      "requiredSkills": "Compétences Requises",
+      "preferredSkills": "Compétences Souhaitées",
+      "techStack": "Environnement Technique",
+      "softSkills": "Qualités Humaines / Soft Skills",
+      "salaryRange": "Fourchette Salariale Estimée",
+      "interviewQuestions": "Questions d'entretien",
+      "atsKeywords": "Mots-clés de recherche ATS"
+    },
+    "actions": {
+      "copy": "Copier la section",
+      "copied": "Copié !",
+      "edit": "Modifier",
+      "save": "Enregistrer",
+      "refine": "Outils IA",
+      "improve": "Améliorer IA",
+      "expand": "Développer IA",
+      "shorten": "Raccourcir IA",
+      "inclusive": "Rendre inclusif IA",
+      "regenerate": "Régénérer"
+    }
+  },
+  "settings": {
+    "title": "Gestion des Modèles IA",
+    "subtitle": "Changez de modèle dynamiquement sur le serveur.",
+    "activeModel": "Modèle Actif",
+    "changeSuccess": "Modèle changé avec succès !",
+    "providerSettings": "Configuration du Fournisseur",
+    "openrouterKey": "Statut API OpenRouter",
+    "keyConfigured": "Configuré",
+    "keyNotConfigured": "Non configuré (utilisation du fallback local)",
+    "chooseModel": "Sélectionner le modèle LLM actif",
+    "gemma": "Google Gemma 2",
+    "llama8b": "Llama 3.1 8B",
+    "llama70b": "Llama 3.3 70B",
+    "qwen7b": "Qwen 2.5 7B",
+    "qwen14b": "Qwen 2.5 14B",
+    "mistral": "Mistral Small"
+  }
+}

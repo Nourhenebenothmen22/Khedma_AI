@@ -1,0 +1,54 @@
+# ─────────────────────────────────────────────────────
+# Render Configuration — Khedma AI Backend
+# ─────────────────────────────────────────────────────
+services:
+  - type: web
+    name: khedma-ai-api
+    runtime: node
+    region: oregon          # Change to: frankfurt / singapore / ohio as needed
+    plan: free              # Upgrade to: starter / standard for production SLAs
+
+    # ── Root directory ───────────────────────────────
+    rootDir: backend
+
+    # ── Build & Start ────────────────────────────────
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && node dist/app.js
+
+    # ── Auto-Deploy ──────────────────────────────────
+    autoDeploy: true        # Triggers on every push to the connected branch
+
+    # ── Health Check ─────────────────────────────────
+    healthCheckPath: /health
+
+    # ── Environment Variables ────────────────────────
+    # IMPORTANT: Set these in the Render dashboard (never commit secrets)
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: 5000
+
+      # Set in Render dashboard → Environment → Secret Files
+      - key: DATABASE_URL
+        sync: false         # Marks as secret — must be set manually in Render UI
+
+      - key: frontend_URL
+        sync: false         # e.g. https://khedma-ai.netlify.app
+
+      # AI Provider Keys — set manually in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false
+
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      - key: GOOGLE_AI_API_KEY
+        sync: false
+
+      - key: GROQ_API_KEY
+        sync: false
+
+      - key: MISTRAL_API_KEY
+        sync: false

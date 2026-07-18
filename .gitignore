@@ -1,0 +1,46 @@
+# ─── Runtime & Build outputs ─────────────────────────
+node_modules/
+dist/
+build/
+.cache/
+.parcel-cache/
+
+# ─── Environment & Secrets ───────────────────────────
+.env
+.env.local
+.env.*.local
+*.local
+
+# ─── Logs ────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Prisma ──────────────────────────────────────────
+backend/prisma/migrations/*.sql.backup
+
+# ─── TypeScript ──────────────────────────────────────
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# ─── OS ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Editor ──────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# ─── Vite ────────────────────────────────────────────
+frontend/dist/
+frontend/.vite/
+
+# ─── Test coverage ───────────────────────────────────
+coverage/
+.nyc_output/

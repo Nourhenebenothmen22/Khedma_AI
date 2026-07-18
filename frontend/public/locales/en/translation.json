@@ -1,0 +1,92 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "generator": "AI Generator",
+    "drafts": "Saved Drafts",
+    "settings": "AI Settings",
+    "stats": "Statistics"
+  },
+  "dashboard": {
+    "title": "Recruiter Dashboard",
+    "subtitle": "Create, edit, and optimize professional job descriptions.",
+    "quickActions": "Quick Actions",
+    "newJob": "New Job Description",
+    "recentGenerations": "Recent Drafts",
+    "noDrafts": "No drafts yet. Start by generating one!",
+    "viewAll": "View all drafts",
+    "stats": {
+      "total": "Total AI Runs",
+      "refinements": "Refinements",
+      "active": "Active Drafts",
+      "favorites": "Templates"
+    }
+  },
+  "generator": {
+    "title": "AI Job Description Generator",
+    "subtitle": "Generate complete, ATS-friendly job descriptions in streaming.",
+    "form": {
+      "promptLabel": "What role are you recruiting for?",
+      "promptPlaceholder": "e.g., Senior Data Engineer specialized in AWS and Python",
+      "seniority": "Seniority Level",
+      "location": "Location",
+      "locationPlaceholder": "e.g., Paris, remote, Hybrid",
+      "workType": "Work Type",
+      "employmentType": "Employment Type",
+      "tone": "Tone of Voice",
+      "language": "Output Language",
+      "generate": "Generate with AI",
+      "generating": "Generating structured sections..."
+    },
+    "canvas": {
+      "title": "Interactive Canvas",
+      "subtitle": "Sections update in real-time as the AI generates them.",
+      "empty": "Enter role details and click generate to stream your job description.",
+      "copyAll": "Copy Full Text",
+      "copied": "Copied!",
+      "exportPdf": "Export PDF",
+      "saveDraft": "Save Draft",
+      "favorite": "Save as Template"
+    },
+    "sections": {
+      "title": "Job Title",
+      "summary": "Professional Summary",
+      "responsibilities": "Responsibilities",
+      "requiredSkills": "Required Skills",
+      "preferredSkills": "Preferred Skills",
+      "techStack": "Technical Stack",
+      "softSkills": "Soft Skills",
+      "salaryRange": "Estimated Salary Range",
+      "interviewQuestions": "Interview Questions",
+      "atsKeywords": "ATS Search Keywords"
+    },
+    "actions": {
+      "copy": "Copy Section",
+      "copied": "Copied!",
+      "edit": "Edit",
+      "save": "Save Changes",
+      "refine": "AI Tools",
+      "improve": "AI Improve",
+      "expand": "AI Expand",
+      "shorten": "AI Shorten",
+      "inclusive": "AI Inclusivity Clean",
+      "regenerate": "Regenerate"
+    }
+  },
+  "settings": {
+    "title": "AI Model Management",
+    "subtitle": "Switch models dynamically on the backend.",
+    "activeModel": "Active Model",
+    "changeSuccess": "Model switched successfully!",
+    "providerSettings": "Provider Configurations",
+    "openrouterKey": "OpenRouter API Status",
+    "keyConfigured": "Configured",
+    "keyNotConfigured": "Not Configured (Using Local Fallback)",
+    "chooseModel": "Select Active LLM Model",
+    "gemma": "Google Gemma 2",
+    "llama8b": "Llama 3.1 8B",
+    "llama70b": "Llama 3.3 70B",
+    "qwen7b": "Qwen 2.5 7B",
+    "qwen14b": "Qwen 2.5 14B",
+    "mistral": "Mistral Small"
+  }
+}

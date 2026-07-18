@@ -27,9 +27,7 @@ services:
       - key: NODE_ENV
         value: production
 
-      - key: PORT
-        value: 5000
-
+      # Render assigns PORT automatically — no need to set it here.
       # Set in Render dashboard → Environment → Secret Files
       - key: DATABASE_URL
         sync: false         # Marks as secret — must be set manually in Render UI

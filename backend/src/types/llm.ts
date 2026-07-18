@@ -42,7 +42,7 @@ export const PROVIDERS_CONFIG: Record<LLMProviderType, ProviderInfo> = {
         id: 'llama-3.1-8b',
         name: 'Llama 3.1 8B',
         provider: 'openrouter',
-        providerModelId: 'meta-llama/llama-3.1-8b-instruct:free',
+        providerModelId: 'meta-llama/llama-3.1-8b-instruct',
         description: 'Meta\'s highly capable lightweight model, ideal for fast tasks.',
         contextWindow: 131072
       },

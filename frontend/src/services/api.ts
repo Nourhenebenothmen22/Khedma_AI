@@ -1,15 +1,26 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
+export function getUserPlan(): string {
+  return localStorage.getItem('khedma_user_plan') || 'FREE';
+}
+
+export function setUserPlan(plan: string): void {
+  localStorage.setItem('khedma_user_plan', plan);
+}
+
 async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const headers = {
     ...options.headers,
-    'Authorization': 'Bearer mock-dev-token-khedma'
+    'Authorization': 'Bearer mock-dev-token-khedma',
+    'x-user-plan': getUserPlan()
   };
   return fetch(url, { ...options, headers });
 }
 
 export interface JobDescription {
   id: string;
+  userId?: string;
+  tenantId?: string;
   title: string;
   seniority: string;
   location: string;
@@ -28,6 +39,7 @@ export interface JobDescription {
 
 export interface JobDescriptionVersion {
   id: string;
+  tenantId?: string;
   jobDescriptionId: string;
   versionNumber: number;
   sections: Record<string, any>;
@@ -72,6 +84,18 @@ export interface AISettings {
   language: 'en' | 'fr' | 'ar';
 }
 
+export interface QuotaInfo {
+  allowed: boolean;
+  currentGenerations: number;
+  used: number;
+  limit: number;
+  remaining: number;
+  plan: 'FREE' | 'PRO' | 'ENTERPRISE';
+  resetDate: string;
+  upgradeUrl?: string;
+  message?: string;
+}
+
 export interface DashboardStats {
   totalGenerations: number;
   totalRefinements: number;
@@ -79,6 +103,7 @@ export interface DashboardStats {
   favoriteTemplates: number;
   totalTokensEstimated: number;
   seniorityDistribution: { seniority: string; count: number }[];
+  quota?: QuotaInfo;
 }
 
 export interface GenerateParams {
@@ -140,12 +165,14 @@ export async function updateSettings(settings: AISettings): Promise<AISettings> 
 }
 
 /**
- * Fetch list of all jobs
+ * Fetch list of all jobs with optional pagination and filtering
  */
-export async function getJobs(filters?: { isFavorite?: boolean; isDraft?: boolean }): Promise<JobDescription[]> {
+export async function getJobs(filters?: { isFavorite?: boolean; isDraft?: boolean; page?: number; limit?: number }): Promise<JobDescription[]> {
   const query = new URLSearchParams();
   if (filters?.isFavorite !== undefined) query.append('isFavorite', String(filters.isFavorite));
   if (filters?.isDraft !== undefined) query.append('isDraft', String(filters.isDraft));
+  if (filters?.page !== undefined) query.append('page', String(filters.page));
+  if (filters?.limit !== undefined) query.append('limit', String(filters.limit));
   
   const res = await authFetch(`${API_BASE_URL}/jobs?${query}`);
   if (!res.ok) throw new Error('Failed to fetch jobs');
@@ -242,7 +269,26 @@ export async function generateJobStream(
   });
 
   if (!response.ok) {
-    throw new Error('AI generation request failed');
+    try {
+      const errorData = await response.json();
+      const errorMessage = errorData.message || errorData.error || errorData.details?.quota?.message || 'AI generation request failed';
+      const err: any = new Error(errorMessage);
+      err.status = response.status;
+      err.quota = errorData.details?.quota || {
+        allowed: false,
+        currentGenerations: errorData.used ?? 15,
+        used: errorData.used ?? 15,
+        limit: errorData.limit ?? 15,
+        remaining: errorData.remaining ?? 0,
+        plan: errorData.plan || 'FREE',
+        resetDate: errorData.resetDate || new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1)).toISOString(),
+        upgradeUrl: errorData.upgradeUrl || '/subscription'
+      };
+      throw err;
+    } catch (e: any) {
+      if (e.status || e.quota) throw e;
+      throw new Error(`AI generation request failed with status ${response.status}`);
+    }
   }
 
   const reader = response.body?.getReader();
@@ -275,4 +321,19 @@ export async function generateJobStream(
       }
     }
   }
+}
+
+/**
+ * Simulate subscription upgrade to PRO or ENTERPRISE
+ */
+export async function upgradePlan(plan: 'PRO' | 'ENTERPRISE'): Promise<{ success: boolean; plan: string; quota: QuotaInfo }> {
+  const res = await authFetch(`${API_BASE_URL}/ai/upgrade`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan })
+  });
+  if (!res.ok) throw new Error('Failed to upgrade subscription plan');
+  const data = await res.json();
+  setUserPlan(data.plan || plan);
+  return data;
 }

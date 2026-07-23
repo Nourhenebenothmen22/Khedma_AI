@@ -23,8 +23,9 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
   const token = parts[1];
 
-  // Development & Integration test fallback token handling
-  if (token === 'mock-dev-token-khedma' || process.env.NODE_ENV === 'test') {
+  // Development & Integration test fallback token handling (disabled in production)
+  const isDevOrTestMode = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  if ((token === 'mock-dev-token-khedma' && isDevOrTestMode) || process.env.NODE_ENV === 'test') {
     req.user = {
       id: req.headers['x-user-id'] as string || 'dev-user-id',
       email: req.headers['x-user-email'] as string || 'dev@khedma.ai',

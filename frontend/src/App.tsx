@@ -8,7 +8,9 @@ import {
   Settings,
   History,
   Sparkles,
-  Check
+  Check,
+  Menu,
+  X
 } from 'lucide-react';
 import {
   getJobs,
@@ -57,13 +59,18 @@ function MainApp() {
   const [langOpen, setLangOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeQuotaData, setUpgradeQuotaData] = useState<QuotaInfo | undefined>(undefined);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
 
-  // Close language popup on click outside
+  // Close language popup and mobile sidebar on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (langRef.current && !langRef.current.contains(event.target as Node)) {
         setLangOpen(false);
+      }
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setIsSidebarOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -243,6 +250,15 @@ function MainApp() {
       {/* HEADER */}
       <header className="sticky top-0 z-40 w-full bg-white/85 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 print:hidden">
         <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Mobile hamburger button */}
+          <button
+            onClick={() => setIsSidebarOpen(prev => !prev)}
+            className="md:hidden p-2 rounded-xl text-slate-500 hover:text-violet-600 hover:bg-violet-50 transition-colors"
+            aria-label="Toggle sidebar"
+          >
+            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+
           <img
             src="/Khedma_logo.png"
             className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-full shadow-md border border-slate-200 bg-white p-0.5"
@@ -322,12 +338,45 @@ function MainApp() {
 
       {/* CORE LAYOUT DISPLAY */}
       <div className="flex flex-1 relative min-h-0">
-        
-        {/* DESKTOP SIDEBAR NAVIGATION */}
-        <aside className="w-64 bg-white border-r border-slate-100 hidden md:flex flex-col justify-between py-6 shrink-0 print:hidden">
+
+        {/* MOBILE SIDEBAR OVERLAY BACKDROP */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* SIDEBAR — fixed drawer on mobile, static on desktop */}
+        <aside
+          ref={sidebarRef}
+          className={`
+            fixed top-0 bottom-0 z-50 w-72 bg-white border-r border-slate-100 flex flex-col justify-between py-6 shrink-0 print:hidden
+            transition-transform duration-300 ease-in-out
+            md:static md:w-64 md:z-auto md:translate-x-0 md:flex
+            ${
+              isRtl
+                ? isSidebarOpen ? 'translate-x-0 right-0' : 'translate-x-full right-0'
+                : isSidebarOpen ? 'translate-x-0 left-0' : '-translate-x-full left-0'
+            }
+          `}
+        >
+          {/* Mobile sidebar header with close button */}
+          <div className="md:hidden flex items-center justify-between px-4 mb-4 pb-3 border-b border-slate-100">
+            <span className="text-sm font-extrabold text-slate-700 uppercase tracking-wider">Navigation</span>
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              aria-label="Close sidebar"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
           <nav className="space-y-1.5 px-4">
             <button
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
                 activeTab === 'dashboard'
                   ? 'bg-violet-50 text-violet-700 shadow-sm'
@@ -339,7 +388,7 @@ function MainApp() {
             </button>
 
             <button
-              onClick={handleResetGenerator}
+              onClick={() => { handleResetGenerator(); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
                 activeTab === 'generator' && !generator.activeJobId
                   ? 'bg-violet-50 text-violet-700 shadow-sm'
@@ -351,7 +400,7 @@ function MainApp() {
             </button>
 
             <button
-              onClick={() => setActiveTab('drafts')}
+              onClick={() => { setActiveTab('drafts'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
                 activeTab === 'drafts'
                   ? 'bg-violet-50 text-violet-700 shadow-sm'
@@ -363,7 +412,7 @@ function MainApp() {
             </button>
 
             <button
-              onClick={() => setActiveTab('settings')}
+              onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
                 activeTab === 'settings'
                   ? 'bg-violet-50 text-violet-700 shadow-sm'

@@ -29,8 +29,21 @@ enum EmploymentType {
   Internship
 }
 
+enum Role {
+  ADMIN
+  USER
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
 model JobDescription {
   id              String               @id @default(uuid())
+  userId          String               @default("dev-user-id")
+  tenantId        String               @default("dev-tenant-id")
   title           String
   seniority       Seniority            @default(Mid)
   location        String
@@ -44,15 +57,21 @@ model JobDescription {
   isDraft         Boolean              @default(true)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
+  deletedAt       DateTime?
   versions        DescriptionVersion[]
 
-  // Indexes to optimize dashboard searches, listings, and filtering
+  // Indexes to optimize multi-tenant dashboard searches, listings, and filtering
   @@index([isDraft])
   @@index([updatedAt, isFavorite])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([tenantId, updatedAt])
+  @@index([tenantId, deletedAt])
 }
 
 model DescriptionVersion {
   id               String         @id @default(uuid())
+  tenantId         String         @default("dev-tenant-id")
   jobDescriptionId String
   jobDescription   JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
   versionNumber    Int
@@ -61,6 +80,7 @@ model DescriptionVersion {
 
   // Optimize version lookups for single job descriptions
   @@index([jobDescriptionId])
+  @@index([tenantId])
   
   // Guard against concurrency race conditions in multi-user settings
   @@unique([jobDescriptionId, versionNumber])
@@ -75,7 +95,12 @@ model SystemConfig {
 
 model UsageStat {
   id         String   @id @default(uuid())
+  userId     String   @default("dev-user-id")
+  tenantId   String   @default("dev-tenant-id")
   action     String   // e.g., "generate_full", "refine_section"
   tokensUsed Int      @default(0)
   createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
 }

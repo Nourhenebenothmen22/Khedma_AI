@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Cpu, Languages, Save, Check, RefreshCw, XCircle } from 'lucide-react';
+import { Cpu, Languages, Save, Check, RefreshCw, XCircle, ChevronDown, Loader2, AlertTriangle } from 'lucide-react';
 import type { ProviderInfo, JobDescriptionSectionSchema } from '../../services/api.js';
 import { API_BASE_URL } from '../../services/api.js';
 
 interface SettingsViewProps {
   providers?: ProviderInfo[];
+  isProvidersLoading?: boolean;
+  isProvidersError?: boolean;
   selectedProvider: string;
   setSelectedProvider: (provider: string) => void;
   selectedModel: string;
@@ -20,6 +22,8 @@ interface SettingsViewProps {
 
 export default function SettingsView({
   providers,
+  isProvidersLoading = false,
+  isProvidersError = false,
   selectedProvider,
   setSelectedProvider,
   selectedModel,
@@ -33,14 +37,24 @@ export default function SettingsView({
 }: SettingsViewProps) {
   
   const [gatewayOnline, setGatewayOnline] = useState<boolean | null>(null);
+  const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
+  const providerRef = useRef<HTMLDivElement>(null);
+  const modelRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on click outside
+  // Close all dropdowns on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (langRef.current && !langRef.current.contains(event.target as Node)) {
         setLangDropdownOpen(false);
+      }
+      if (providerRef.current && !providerRef.current.contains(event.target as Node)) {
+        setProviderDropdownOpen(false);
+      }
+      if (modelRef.current && !modelRef.current.contains(event.target as Node)) {
+        setModelDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -105,42 +119,122 @@ export default function SettingsView({
               <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">AI Configuration Parameters</h3>
             </div>
 
-            {/* Provider Selector */}
-            <div className="space-y-1.5">
+            {/* Provider Selector — custom dropdown */}
+            <div className="space-y-1.5 relative" ref={providerRef}>
               <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">AI Inference Provider</label>
-              <select
-                value={selectedProvider}
-                onChange={(e) => setSelectedProvider(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-violet-600 focus:bg-white transition-all font-semibold"
-              >
-                {providers?.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-[10px] text-slate-400 mt-1">
-                {providers?.find(p => p.id === selectedProvider)?.description}
-              </p>
+
+              {isProvidersLoading ? (
+                <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs text-slate-400">
+                  <Loader2 size={13} className="animate-spin shrink-0" />
+                  <span>Loading providers…</span>
+                </div>
+              ) : isProvidersError ? (
+                <div className="w-full bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs text-red-500">
+                  <AlertTriangle size={13} className="shrink-0" />
+                  <span>Failed to load providers. Check backend connection.</span>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { setProviderDropdownOpen(o => !o); setModelDropdownOpen(false); setLangDropdownOpen(false); }}
+                    className={`w-full bg-slate-50 hover:bg-slate-100/50 border rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:bg-white transition-all font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm ${
+                      providerDropdownOpen ? 'border-violet-500 bg-white ring-2 ring-violet-100' : 'border-slate-200'
+                    }`}
+                  >
+                    <span className="truncate min-w-0">
+                      {providers?.find(p => p.id === selectedProvider)?.name || 'Select provider…'}
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className={`shrink-0 text-slate-400 transition-transform duration-200 ${providerDropdownOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {providerDropdownOpen && (
+                    <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-50 overflow-hidden max-h-56 overflow-y-auto">
+                      {providers?.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => { setSelectedProvider(p.id); setProviderDropdownOpen(false); }}
+                          className={`w-full text-left px-4 py-2.5 text-xs font-semibold flex items-center justify-between gap-2 hover:bg-slate-50 transition-colors cursor-pointer ${
+                            selectedProvider === p.id ? 'bg-violet-50/60 text-violet-700' : 'text-slate-700'
+                          }`}
+                        >
+                          <span className="truncate">{p.name}</span>
+                          {selectedProvider === p.id && <Check size={12} className="shrink-0 text-violet-600" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {providers?.find(p => p.id === selectedProvider)?.description && (
+                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                      {providers?.find(p => p.id === selectedProvider)?.description}
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
-            {/* Cascading Models Selector */}
-            <div className="space-y-1.5">
+            {/* Model Selector — custom dropdown */}
+            <div className="space-y-1.5 relative" ref={modelRef}>
               <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Active Generation Model</label>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-violet-600 focus:bg-white transition-all font-semibold"
-              >
-                {availableModels.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-[10px] text-slate-400 mt-1">
-                {availableModels.find(m => m.id === selectedModel)?.description}
-              </p>
+
+              {isProvidersLoading ? (
+                <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs text-slate-400">
+                  <Loader2 size={13} className="animate-spin shrink-0" />
+                  <span>Loading models…</span>
+                </div>
+              ) : isProvidersError ? (
+                <div className="w-full bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs text-red-500">
+                  <AlertTriangle size={13} className="shrink-0" />
+                  <span>Models unavailable.</span>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { setModelDropdownOpen(o => !o); setProviderDropdownOpen(false); setLangDropdownOpen(false); }}
+                    className={`w-full bg-slate-50 hover:bg-slate-100/50 border rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:bg-white transition-all font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm ${
+                      modelDropdownOpen ? 'border-violet-500 bg-white ring-2 ring-violet-100' : 'border-slate-200'
+                    }`}
+                  >
+                    <span className="truncate min-w-0">
+                      {availableModels.find(m => m.id === selectedModel)?.name || 'Select model…'}
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className={`shrink-0 text-slate-400 transition-transform duration-200 ${modelDropdownOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {modelDropdownOpen && (
+                    <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-50 overflow-hidden max-h-56 overflow-y-auto">
+                      {availableModels.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => { setSelectedModel(m.id); setModelDropdownOpen(false); }}
+                          className={`w-full text-left px-4 py-2.5 text-xs font-semibold flex items-center justify-between gap-2 hover:bg-slate-50 transition-colors cursor-pointer ${
+                            selectedModel === m.id ? 'bg-violet-50/60 text-violet-700' : 'text-slate-700'
+                          }`}
+                        >
+                          <span className="truncate">{m.name}</span>
+                          {selectedModel === m.id && <Check size={12} className="shrink-0 text-violet-600" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {availableModels.find(m => m.id === selectedModel)?.description && (
+                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                      {availableModels.find(m => m.id === selectedModel)?.description}
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
             {/* AI Target Output Language Selector Dropdown */}

@@ -89,14 +89,18 @@ function MainApp() {
     queryFn: getSectionsSchema
   });
 
-  const { data: providers } = useQuery<ProviderInfo[]>({
+  const { data: providers, isLoading: isProvidersLoading, isError: isProvidersError } = useQuery<ProviderInfo[]>({
     queryKey: ['providers'],
-    queryFn: getProviders
+    queryFn: getProviders,
+    retry: 2,
+    staleTime: 5 * 60 * 1000
   });
 
-  const { data: activeSettings } = useQuery<AISettings>({
+  const { data: activeSettings, isLoading: isSettingsLoading } = useQuery<AISettings>({
     queryKey: ['aiSettings'],
-    queryFn: getSettings
+    queryFn: getSettings,
+    retry: 2,
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: stats } = useQuery({
@@ -515,6 +519,8 @@ function MainApp() {
               <SettingsView
                 key="settings"
                 providers={providers}
+                isProvidersLoading={isProvidersLoading}
+                isProvidersError={isProvidersError}
                 selectedProvider={selectedProvider}
                 setSelectedProvider={setSelectedProvider}
                 selectedModel={selectedModel}

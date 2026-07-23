@@ -5,7 +5,7 @@ export const generateSchema = z.object({
   seniority: z.enum(['Junior', 'Mid', 'Senior', 'Lead', 'Executive']).optional().default('Mid'),
   location: z.string().max(100, 'Location must be less than 100 characters').optional().default('Remote'),
   workType: z.enum(['Remote', 'Hybrid', 'Onsite']).optional().default('Remote'),
-  employmentType: z.enum(['Full-time', 'Part-time', 'Contract', 'Internship']).optional().default('Full-time'),
+  employmentType: z.enum(['Full-time', 'Part-time', 'Contract', 'Internship', 'FullTime', 'PartTime']).optional().default('Full-time'),
   tone: z.enum(['professional', 'startup', 'corporate', 'enthusiastic']).optional().default('professional')
 });
 
@@ -26,7 +26,7 @@ export const createJobSchema = z.object({
   seniority: z.enum(['Junior', 'Mid', 'Senior', 'Lead', 'Executive']).optional().default('Mid'),
   location: z.string().max(100, 'Location must be less than 100 characters').optional().default('Remote'),
   workType: z.enum(['Remote', 'Hybrid', 'Onsite']).optional().default('Remote'),
-  employmentType: z.enum(['Full-time', 'Part-time', 'Contract', 'Internship']).optional().default('Full-time'),
+  employmentType: z.enum(['Full-time', 'Part-time', 'Contract', 'Internship', 'FullTime', 'PartTime']).optional().default('Full-time'),
   language: z.enum(['en', 'fr', 'ar']).optional().default('en'),
   tone: z.enum(['professional', 'startup', 'corporate', 'enthusiastic']).optional().default('professional'),
   sections: z.record(z.string(), z.any()),

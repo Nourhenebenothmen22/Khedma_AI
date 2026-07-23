@@ -41,6 +41,9 @@ jobs:
       - name: Type check (tsc)
         run: npx tsc --noEmit
 
+      - name: Run unit tests
+        run: npm test
+
       - name: Build production bundle
         run: npm run build
         env:
@@ -64,7 +67,7 @@ jobs:
         working-directory: backend
 
     env:
-      DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.CI_DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/khedma_test' }}
       NODE_ENV: test
 
     steps:

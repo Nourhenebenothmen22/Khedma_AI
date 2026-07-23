@@ -30,7 +30,8 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
       id: req.headers['x-user-id'] as string || 'dev-user-id',
       email: req.headers['x-user-email'] as string || 'dev@khedma.ai',
       role: (req.headers['x-user-role'] as any) || 'ADMIN',
-      tenantId: req.headers['x-tenant-id'] as string || 'dev-tenant-id'
+      tenantId: req.headers['x-tenant-id'] as string || 'dev-tenant-id',
+      plan: (req.headers['x-user-plan'] as string) || 'FREE'
     };
     next();
     return;
@@ -42,7 +43,8 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
       id: decoded.id || 'dev-user-id',
       email: decoded.email || 'user@khedma.ai',
       role: decoded.role || 'USER',
-      tenantId: decoded.tenantId || 'dev-tenant-id'
+      tenantId: decoded.tenantId || 'dev-tenant-id',
+      plan: decoded.plan || 'FREE'
     };
     next();
   } catch (error: any) {

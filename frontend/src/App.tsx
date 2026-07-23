@@ -1,17 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import {
   Briefcase,
   LayoutDashboard,
   Settings,
   History,
   Sparkles,
-  Check,
-  CheckCircle,
-  XCircle,
-  AlertCircle
+  Check
 } from 'lucide-react';
 import {
   getJobs,
@@ -20,9 +17,11 @@ import {
   getSettings,
   getSectionsSchema,
   getStats,
-  updateSettings
+  updateSettings,
+  upgradePlan
 } from './services/api.js';
-import type { JobDescription, AISettings, JobDescriptionSectionSchema, ProviderInfo } from './services/api.js';
+import UpgradeModal from './components/subscription/UpgradeModal.js';
+import type { JobDescription, AISettings, JobDescriptionSectionSchema, ProviderInfo, QuotaInfo, DashboardStats } from './services/api.js';
 
 // Modular View Components Imports
 import DashboardView from './components/dashboard/DashboardView.js';
@@ -30,8 +29,10 @@ import DraftsView from './components/drafts/DraftsView.js';
 import SettingsView from './components/settings/SettingsView.js';
 import GeneratorView from './components/generator/GeneratorView.js';
 
-// Custom Hook Import
+// Custom Hook & Context Imports
 import { useJobGenerator } from './hooks/useJobGenerator.js';
+import { ToastProvider, useToast } from './context/ToastContext.js';
+import { ModalProvider, useConfirmModal } from './context/ModalContext.js';
 
 const getLanguageInfo = (lang: string) => {
   if (!lang) return { code: 'us', label: 'English' };
@@ -43,37 +44,20 @@ const getLanguageInfo = (lang: string) => {
   }
 };
 
-export default function App() {
+function MainApp() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  
+  const { addToast } = useToast();
+  const { triggerConfirm } = useConfirmModal();
+
+  const langInfo = getLanguageInfo(i18n.language);
+
   // Navigation & UI States
   const [activeTab, setActiveTab] = useState<'dashboard' | 'generator' | 'drafts' | 'settings'>('dashboard');
   const [langOpen, setLangOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeQuotaData, setUpgradeQuotaData] = useState<QuotaInfo | undefined>(undefined);
   const langRef = useRef<HTMLDivElement>(null);
-
-  // Custom Toast State
-  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
-  
-  // Custom Confirm Modal State
-  const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    onConfirm: () => void;
-  } | null>(null);
-
-  const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3500);
-  }, []);
-
-  const triggerConfirm = useCallback((title: string, message: string, onConfirm: () => void) => {
-    setConfirmModal({ isOpen: true, title, message, onConfirm });
-  }, []);
 
   // Close language popup on click outside
   useEffect(() => {
@@ -110,8 +94,7 @@ export default function App() {
 
   const { data: stats } = useQuery({
     queryKey: ['stats'],
-    queryFn: getStats,
-    enabled: activeTab === 'dashboard'
+    queryFn: getStats
   });
 
   const { data: jobs } = useQuery({
@@ -154,19 +137,62 @@ export default function App() {
 
   const deleteJobMutation = useMutation({
     mutationFn: deleteJob,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      addToast(t('generator.canvas.deleted') || 'Draft deleted successfully', 'success');
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['jobs'] });
+      await queryClient.cancelQueries({ queryKey: ['stats'] });
+
+      const previousJobs = queryClient.getQueryData<JobDescription[]>(['jobs']);
+      const previousStats = queryClient.getQueryData<DashboardStats>(['stats']);
+
+      if (previousJobs) {
+        queryClient.setQueryData<JobDescription[]>(['jobs'], previousJobs.filter((j) => j.id !== id));
+      }
+
+      if (previousStats) {
+        const deletedJob = previousJobs?.find((j) => j.id === id);
+        queryClient.setQueryData<DashboardStats>(['stats'], {
+          ...previousStats,
+          activeDrafts: deletedJob?.isDraft ? Math.max(0, previousStats.activeDrafts - 1) : previousStats.activeDrafts,
+          favoriteTemplates: deletedJob?.isDraft === false ? Math.max(0, previousStats.favoriteTemplates - 1) : previousStats.favoriteTemplates
+        });
+      }
+
+      return { previousJobs, previousStats };
     },
-    onError: (err: any) => {
+    onError: (err: any, _id, context) => {
+      if (context?.previousJobs) queryClient.setQueryData(['jobs'], context.previousJobs);
+      if (context?.previousStats) queryClient.setQueryData(['stats'], context.previousStats);
       addToast(err.message || 'Failed to delete job', 'error');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['stats'], refetchType: 'all' });
+    },
+    onSuccess: () => {
+      addToast(t('generator.canvas.deleted') || 'Draft deleted successfully', 'success');
     }
   });
 
   const triggerPrint = useCallback(() => {
     window.print();
   }, []);
+
+  const handleQuotaExceeded = useCallback((quota?: QuotaInfo) => {
+    setUpgradeQuotaData(quota || stats?.quota);
+    setIsUpgradeModalOpen(true);
+  }, [stats?.quota]);
+
+  const handleUpgradeToPlan = useCallback(async (plan: 'PRO' | 'ENTERPRISE') => {
+    try {
+      const result = await upgradePlan(plan);
+      queryClient.invalidateQueries({ queryKey: ['stats'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['jobs'], refetchType: 'all' });
+      const limitLabel = plan === 'ENTERPRISE' ? 'Unlimited' : '500 generations/month';
+      addToast(`Successfully upgraded subscription to ${result.plan || plan} Plan! Limit is now ${limitLabel}.`, 'success');
+    } catch (err: any) {
+      addToast(err.message || 'Subscription upgrade failed', 'error');
+    }
+  }, [queryClient, addToast]);
 
   // Consume extracted custom hook for job generation
   const generator = useJobGenerator({
@@ -175,7 +201,8 @@ export default function App() {
     jobs,
     addToast,
     t,
-    i18n
+    i18n,
+    onQuotaExceeded: handleQuotaExceeded
   });
 
   const { openDraftState, resetGenerator } = generator;
@@ -201,68 +228,6 @@ export default function App() {
   return (
     <div dir={isRtl ? 'rtl' : 'ltr'} className="min-h-screen flex flex-col bg-slate-50/50 text-slate-800 antialiased transition-all duration-150">
       
-      {/* Dynamic Toast portal overlay */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full">
-        <AnimatePresence>
-          {toasts.map((toast) => (
-            <motion.div
-              key={toast.id}
-              initial={{ opacity: 0, y: 15, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              className={`p-4 rounded-xl border shadow-lg flex items-center gap-3 bg-white pointer-events-auto ${
-                toast.type === 'success'
-                  ? 'border-emerald-100 text-emerald-800'
-                  : toast.type === 'error'
-                  ? 'border-red-100 text-red-800'
-                  : 'border-blue-100 text-blue-800'
-              }`}
-            >
-              {toast.type === 'success' && <CheckCircle size={16} className="text-emerald-500 shrink-0" />}
-              {toast.type === 'error' && <XCircle size={16} className="text-red-500 shrink-0" />}
-              {toast.type === 'info' && <AlertCircle size={16} className="text-blue-500 shrink-0" />}
-              <span className="text-xs font-semibold">{toast.message}</span>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* Reusable custom non-blocking confirm dialog modal */}
-      <AnimatePresence>
-        {confirmModal?.isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4"
-            >
-              <div>
-                <h3 className="font-extrabold text-slate-900 text-base">{confirmModal.title}</h3>
-                <p className="text-xs text-slate-500 mt-2 leading-relaxed">{confirmModal.message}</p>
-              </div>
-              <div className="flex items-center gap-3 justify-end pt-2">
-                <button
-                  onClick={() => setConfirmModal(null)}
-                  className="px-4 py-2 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-500 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    confirmModal.onConfirm();
-                    setConfirmModal(null);
-                  }}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                >
-                  Delete
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* HEADER */}
       <header className="sticky top-0 z-40 w-full bg-white/85 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-6 py-4 print:hidden">
         <div className="flex items-center gap-3">
@@ -295,8 +260,8 @@ export default function App() {
               onClick={() => setLangOpen(!langOpen)}
               className="flex items-center gap-2.5 bg-white hover:bg-slate-50 px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 shadow-sm text-slate-700 transition-colors cursor-pointer"
             >
-              <img src={`https://flagcdn.com/w20/${getLanguageInfo(i18n.language).code}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm border border-slate-200/50" alt="" />
-              <span>{getLanguageInfo(i18n.language).label}</span>
+              <img src={`https://flagcdn.com/w20/${langInfo.code}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm border border-slate-200/50" alt="" />
+              <span>{langInfo.label}</span>
               <span className="text-[9px] text-slate-400">▼</span>
             </button>
             {langOpen && (
@@ -416,6 +381,7 @@ export default function App() {
                 openDraft={handleOpenDraft}
                 setActiveTab={setActiveTab}
                 t={t}
+                onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
               />
             )}
 
@@ -457,6 +423,7 @@ export default function App() {
                 copiedSection={generator.copiedSection}
                 onGenerate={generator.handleGenerate}
                 onCancelGeneration={generator.handleCancelGeneration}
+                onSaveDraft={generator.handleSaveDraft}
                 onSaveFinal={generator.handleSaveFinal}
                 t={t}
                 uiLang={uiLang}
@@ -470,11 +437,12 @@ export default function App() {
                 jobs={jobs}
                 openDraft={handleOpenDraft}
                 onDeleteJob={(id) => {
-                  triggerConfirm(
-                    'Delete Draft?',
-                    'Are you sure you want to permanently delete this job template? This action is irreversible.',
-                    () => deleteJobMutation.mutate(id)
-                  );
+                  triggerConfirm({
+                    title: 'Delete Draft?',
+                    message: 'Are you sure you want to permanently delete this job template? This action is irreversible.',
+                    confirmText: 'Delete',
+                    onConfirm: () => deleteJobMutation.mutate(id)
+                  });
                 }}
                 t={t}
               />
@@ -505,6 +473,24 @@ export default function App() {
       <footer className="py-4 text-center text-xs text-slate-500 border-t border-slate-100 mt-auto bg-white font-semibold print:hidden">
         &copy; {new Date().getFullYear()} Khedma AI. Built for HR professionals. Pure light theme.
       </footer>
+
+      {/* SAAS UPGRADE MODAL */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        quota={upgradeQuotaData || stats?.quota}
+        onUpgradeToPlan={handleUpgradeToPlan}
+      />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <ModalProvider>
+        <MainApp />
+      </ModalProvider>
+    </ToastProvider>
   );
 }

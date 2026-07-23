@@ -31,14 +31,21 @@ export default function DraftsView({ jobs, openDraft, onDeleteJob, t }: DraftsVi
             >
               <div onClick={() => openDraft(job)}>
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] bg-violet-50 border border-violet-100 px-2 py-0.5 rounded-full text-violet-700 font-bold uppercase">
-                    {job.seniority}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] bg-violet-50 border border-violet-100 px-2 py-0.5 rounded-full text-violet-700 font-bold uppercase">
+                      {job.seniority}
+                    </span>
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase border ${
+                      job.isDraft ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    }`}>
+                      {job.isDraft ? 'Draft' : 'Template'}
+                    </span>
+                  </div>
                   <span className="text-[10px] text-slate-400">{new Date(job.updatedAt).toLocaleDateString()}</span>
                 </div>
                 <h3 className="font-bold text-slate-800 text-sm mt-3 group-hover:text-violet-700 transition-colors">{job.title}</h3>
                 <p className="text-xs text-slate-500 mt-2 line-clamp-3 leading-relaxed">
-                  {job.sections.summary || 'No summary generated yet.'}
+                  {job.sections?.summary || (typeof job.sections === 'object' && Object.values(job.sections).find(v => typeof v === 'string' && v.length > 0)) || 'No summary generated yet.'}
                 </p>
               </div>
 

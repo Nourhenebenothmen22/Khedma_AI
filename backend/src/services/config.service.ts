@@ -1,4 +1,4 @@
-import { prisma } from '../config/db.js';
+import { configRepository } from '../repositories/config.repository.js';
 import { LLMProviderType, JobDescriptionSectionSchema, PROVIDERS_CONFIG } from '../types/llm.js';
 
 const PROVIDER_KEY = 'active_llm_provider';
@@ -104,11 +104,7 @@ export class ConfigService {
    */
   async getActiveSettings(): Promise<{ provider: LLMProviderType; model: string; language: 'en' | 'fr' | 'ar' }> {
     try {
-      const configRows = await prisma.systemConfig.findMany({
-        where: {
-          key: { in: [PROVIDER_KEY, MODEL_KEY, LANGUAGE_KEY] }
-        }
-      });
+      const configRows = await configRepository.getConfigs([PROVIDER_KEY, MODEL_KEY, LANGUAGE_KEY]);
 
       const providerRow = configRows.find(r => r.key === PROVIDER_KEY);
       const modelRow = configRows.find(r => r.key === MODEL_KEY);
@@ -152,22 +148,10 @@ export class ConfigService {
     }
 
     try {
-      await prisma.$transaction([
-        prisma.systemConfig.upsert({
-          where: { key: PROVIDER_KEY },
-          update: { value: provider },
-          create: { key: PROVIDER_KEY, value: provider }
-        }),
-        prisma.systemConfig.upsert({
-          where: { key: MODEL_KEY },
-          update: { value: model },
-          create: { key: MODEL_KEY, value: model }
-        }),
-        prisma.systemConfig.upsert({
-          where: { key: LANGUAGE_KEY },
-          update: { value: language },
-          create: { key: LANGUAGE_KEY, value: language }
-        })
+      await configRepository.upsertConfigs([
+        { key: PROVIDER_KEY, value: provider },
+        { key: MODEL_KEY, value: model },
+        { key: LANGUAGE_KEY, value: language }
       ]);
     } catch (error) {
       console.error('Failed to update active settings in database:', error);

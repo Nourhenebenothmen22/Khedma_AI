@@ -1,4 +1,4 @@
-import { Sliders, RefreshCw, Sparkles, Copy, Check, Printer, Star } from 'lucide-react';
+import { Sliders, RefreshCw, Sparkles, Copy, Check, Printer, Star, Bookmark } from 'lucide-react';
 import type { JobDescriptionSectionSchema, ProviderInfo, JobDescription } from '../../services/api.js';
 import SectionCard from './SectionCard.js';
 
@@ -38,6 +38,7 @@ interface GeneratorViewProps {
   copiedSection: string | null;
   onGenerate: () => void;
   onCancelGeneration?: () => void;
+  onSaveDraft?: () => void;
   onSaveFinal?: () => void;
   t: (key: string) => string;
   uiLang: 'en' | 'fr' | 'ar';
@@ -80,6 +81,7 @@ export default function GeneratorView({
   copiedSection,
   onGenerate,
   onCancelGeneration,
+  onSaveDraft,
   onSaveFinal,
   t,
   uiLang,
@@ -223,37 +225,49 @@ export default function GeneratorView({
             )}
           </div>
 
-          {generatedSections.title && (
-            <div className="flex items-center gap-2">
+          {hasContent && (
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={copyAllText}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 flex items-center gap-1.5 transition-colors"
+                className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 {copiedAll ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
                 <span>{copiedAll ? t('generator.canvas.copied') : t('generator.canvas.copyAll')}</span>
               </button>
               <button
                 onClick={triggerPrint}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 flex items-center gap-1.5 transition-colors"
+                className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Printer size={12} />
                 <span>{t('generator.canvas.exportPdf')}</span>
               </button>
+
+              {onSaveDraft && (
+                <button
+                  onClick={onSaveDraft}
+                  className="px-3 py-1.5 rounded-lg border border-violet-200 bg-violet-50/50 hover:bg-violet-100 text-xs font-semibold text-violet-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Bookmark size={12} />
+                  <span>{t('generator.canvas.saveDraft') || 'Save Draft'}</span>
+                </button>
+              )}
+
               {activeJobId && (
                 <button
                   onClick={handleToggleFavorite}
-                  className={`px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-                    currentJob?.isFavorite ? 'text-amber-500' : 'text-slate-600'
+                  className={`px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    currentJob?.isFavorite ? 'text-amber-500 border-amber-200 bg-amber-50/50' : 'text-slate-600'
                   }`}
                 >
                   <Star size={12} fill={currentJob?.isFavorite ? 'currentColor' : 'none'} />
                   <span>{t('generator.canvas.favorite')}</span>
                 </button>
               )}
-              {activeJobId && (
+
+              {onSaveFinal && (
                 <button
                   onClick={onSaveFinal}
-                  className={`px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                     currentJob?.isDraft === false ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'text-slate-600'
                   }`}
                 >

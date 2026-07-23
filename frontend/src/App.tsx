@@ -83,6 +83,14 @@ function MainApp() {
     root.classList.remove('dark');
   }, []);
 
+  // Pre-warm the Render backend on mount (free tier sleeps after inactivity).
+  // Fire-and-forget: errors are silently ignored — queries will retry independently.
+  useEffect(() => {
+    const backendRoot = (import.meta.env.VITE_API_BASE_URL || 'https://khedma-ai-api-z18b.onrender.com/api/v1')
+      .replace('/api/v1', '');
+    fetch(`${backendRoot}/health`, { method: 'GET' }).catch(() => {/* silent */});
+  }, []);
+
   // Queries
   const { data: sectionsSchema } = useQuery<JobDescriptionSectionSchema[]>({
     queryKey: ['sectionsSchema'],

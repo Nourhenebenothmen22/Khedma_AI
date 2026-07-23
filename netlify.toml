@@ -36,6 +36,7 @@
 # Production — main branch
 [context.production.environment]
   VITE_ENV = "production"
+  VITE_API_BASE_URL = "https://khedma-ai-api-z18b.onrender.com/api/v1"
 
 # Deploy Previews — pull requests
 [context.deploy-preview.environment]

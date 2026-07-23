@@ -7,7 +7,7 @@
   publish   = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "22"
 
 # ─── SPA Fallback Routing ────────────────────────────
 [[redirects]]
@@ -41,7 +41,9 @@
 # Deploy Previews — pull requests
 [context.deploy-preview.environment]
   VITE_ENV = "preview"
+  VITE_API_BASE_URL = "https://khedma-ai-api-z18b.onrender.com/api/v1"
 
 # Branch deploys — develop / feature branches
 [context.branch-deploy.environment]
   VITE_ENV = "preview"
+  VITE_API_BASE_URL = "https://khedma-ai-api-z18b.onrender.com/api/v1"

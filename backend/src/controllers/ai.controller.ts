@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { OpenRouterLLMProvider } from '../services/llm.service.js';
 import { configService } from '../services/config.service.js';
+import { statsRepository } from '../repositories/stats.repository.js';
+import { quotaService } from '../services/quota.service.js';
 import { PROVIDERS_CONFIG, LLMProviderType } from '../types/llm.js';
-import { prisma } from '../config/db.js';
 
 const llmProvider = new OpenRouterLLMProvider();
 
@@ -31,7 +32,29 @@ export class AIController {
     res.json({ message: 'AI settings updated successfully', settings: { provider, model, language } });
   };
 
+  upgradePlan = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = req.user?.tenantId || 'dev-tenant-id';
+      const { plan } = req.body;
+      const targetPlan = (plan && ['FREE', 'PRO', 'ENTERPRISE'].includes(String(plan).toUpperCase()))
+        ? String(plan).toUpperCase()
+        : 'PRO';
+
+      const quota = await quotaService.checkQuota(tenantId, targetPlan);
+      res.json({
+        success: true,
+        message: `Successfully upgraded subscription to ${targetPlan} plan.`,
+        plan: targetPlan,
+        quota
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   generate = async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.id || 'dev-user-id';
+    const tenantId = req.user?.tenantId || 'dev-tenant-id';
     const { prompt, seniority, location, workType, employmentType, tone } = req.body;
 
     const abortController = new AbortController();
@@ -83,13 +106,8 @@ export class AIController {
         abortController.signal
       );
 
-      // Asynchronously log usage metrics
-      prisma.usageStat.create({
-        data: {
-          action: 'generate_full',
-          tokensUsed: Math.round(responseBody.length / 4)
-        }
-      }).catch(err => console.error('Failed to log usage stat:', err));
+      // Asynchronously log usage metrics scoped by tenant & user
+      statsRepository.logUsage(userId, tenantId, 'generate_full', Math.round(responseBody.length / 4));
 
       res.write(`data: ${JSON.stringify({ status: 'completed' })}\n\n`);
       res.end();
@@ -110,6 +128,8 @@ export class AIController {
   };
 
   refineSection = async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.id || 'dev-user-id';
+    const tenantId = req.user?.tenantId || 'dev-tenant-id';
     const { sectionName, currentContent, action } = req.body;
     const settings = await configService.getActiveSettings();
 
@@ -124,12 +144,7 @@ export class AIController {
       settings.language
     );
 
-    prisma.usageStat.create({
-      data: {
-        action: `refine_${action}`,
-        tokensUsed: Math.round((currentContent.length + refinedContent.length) / 4)
-      }
-    }).catch(err => console.error('Failed to log usage stat:', err));
+    statsRepository.logUsage(userId, tenantId, `refine_${action}`, Math.round((currentContent.length + refinedContent.length) / 4));
 
     res.json({ refinedContent });
   };

@@ -1,12 +1,13 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Zap, Crown, Sparkles, Shield } from 'lucide-react';
+import { X, Check, Zap, Crown, Sparkles, Shield, Loader2 } from 'lucide-react';
 import type { QuotaInfo } from '../../services/api.js';
 
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   quota?: QuotaInfo;
-  onUpgradeToPlan?: (plan: 'PRO' | 'ENTERPRISE') => void;
+  onUpgradeToPlan?: (plan: 'PRO' | 'ENTERPRISE') => Promise<void> | void;
 }
 
 export default function UpgradeModal({
@@ -15,6 +16,8 @@ export default function UpgradeModal({
   quota,
   onUpgradeToPlan
 }: UpgradeModalProps) {
+  const [loadingPlan, setLoadingPlan] = useState<'PRO' | 'ENTERPRISE' | null>(null);
+
   if (!isOpen) return null;
 
   const currentPlan = quota?.plan || 'FREE';
@@ -28,11 +31,17 @@ export default function UpgradeModal({
     return nextMonth.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const handleSelectPlan = (plan: 'PRO' | 'ENTERPRISE') => {
-    if (onUpgradeToPlan) {
-      onUpgradeToPlan(plan);
+  const handleSelectPlan = async (plan: 'PRO' | 'ENTERPRISE') => {
+    if (loadingPlan) return;
+    try {
+      setLoadingPlan(plan);
+      if (onUpgradeToPlan) {
+        await onUpgradeToPlan(plan);
+      }
+      onClose();
+    } finally {
+      setLoadingPlan(null);
     }
-    onClose();
   };
 
   return (
@@ -61,13 +70,12 @@ export default function UpgradeModal({
             </div>
             <button
               onClick={onClose}
-              className="absolute top-6 right-6 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0"
+              disabled={loadingPlan !== null}
+              className="absolute top-6 right-6 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0 disabled:opacity-50"
             >
               <X size={20} />
             </button>
           </div>
-
-
 
           {/* Pricing Grid */}
           <div className="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -156,10 +164,15 @@ export default function UpgradeModal({
               </div>
               <button
                 onClick={() => handleSelectPlan('PRO')}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 hover:brightness-105 transition-all text-center flex items-center justify-center gap-2"
+                disabled={loadingPlan !== null}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 hover:brightness-105 transition-all text-center flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                <Zap size={14} />
-                <span>Upgrade to PRO Now</span>
+                {loadingPlan === 'PRO' ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Zap size={14} />
+                )}
+                <span>{loadingPlan === 'PRO' ? 'Upgrading...' : 'Upgrade to PRO Now'}</span>
               </button>
             </div>
 
@@ -202,9 +215,13 @@ export default function UpgradeModal({
               </div>
               <button
                 onClick={() => handleSelectPlan('ENTERPRISE')}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors text-center"
+                disabled={loadingPlan !== null}
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors text-center flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                Contact Sales / Upgrade
+                {loadingPlan === 'ENTERPRISE' ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : null}
+                <span>{loadingPlan === 'ENTERPRISE' ? 'Upgrading...' : 'Contact Sales / Upgrade'}</span>
               </button>
             </div>
           </div>

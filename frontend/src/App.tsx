@@ -185,10 +185,22 @@ function MainApp() {
   const handleUpgradeToPlan = useCallback(async (plan: 'PRO' | 'ENTERPRISE') => {
     try {
       const result = await upgradePlan(plan);
+
+      // Instantly update React Query Cache in 0ms
+      queryClient.setQueryData<DashboardStats>(['stats'], (oldStats) => {
+        if (!oldStats) return oldStats;
+        return {
+          ...oldStats,
+          quota: result.quota
+        };
+      });
+
+      // Synchronize cache in background
       queryClient.invalidateQueries({ queryKey: ['stats'], refetchType: 'all' });
       queryClient.invalidateQueries({ queryKey: ['jobs'], refetchType: 'all' });
+
       const limitLabel = plan === 'ENTERPRISE' ? 'Unlimited' : '500 generations/month';
-      addToast(`Successfully upgraded subscription to ${result.plan || plan} Plan! Limit is now ${limitLabel}.`, 'success');
+      addToast(`Successfully upgraded subscription to ${result.plan || plan} Plan! Capacity is now ${limitLabel}.`, 'success');
     } catch (err: any) {
       addToast(err.message || 'Subscription upgrade failed', 'error');
     }
@@ -363,9 +375,11 @@ function MainApp() {
             </button>
           </nav>
 
-          <div className="mx-4 p-4 rounded-2xl bg-gradient-to-tr from-slate-50 to-violet-50/30 border border-slate-100 text-center">
-            <span className="text-xs text-violet-600 font-extrabold uppercase tracking-widest block mb-1">Dynamic Schema</span>
-            <p className="text-[11px] text-slate-500 leading-normal">Configure models, parameters, and languages from the database settings page.</p>
+          <div className="px-6 py-4">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100">
+              <span className="text-[10px] font-extrabold text-violet-600 tracking-widest uppercase block mb-1">Dynamic Schema</span>
+              <p className="text-[11px] text-slate-600 leading-normal">Configure models, parameters, and languages from database settings.</p>
+            </div>
           </div>
         </aside>
 
@@ -410,7 +424,6 @@ function MainApp() {
                 triggerPrint={triggerPrint}
                 activeJobId={generator.activeJobId}
                 handleToggleFavorite={generator.handleToggleFavorite}
-                jobs={jobs}
                 editingSection={generator.editingSection}
                 setEditingSection={generator.setEditingSection}
                 editValue={generator.editValue}
@@ -438,9 +451,10 @@ function MainApp() {
                 openDraft={handleOpenDraft}
                 onDeleteJob={(id) => {
                   triggerConfirm({
-                    title: 'Delete Draft?',
-                    message: 'Are you sure you want to permanently delete this job template? This action is irreversible.',
-                    confirmText: 'Delete',
+                    title: t('generator.canvas.deleteConfirmTitle') || 'Delete Job Description',
+                    message: t('generator.canvas.deleteConfirmMessage') || 'Are you sure you want to delete this job description? This action cannot be undone.',
+                    confirmText: t('generator.canvas.deleteConfirm') || 'Delete',
+                    cancelText: t('generator.canvas.cancel') || 'Cancel',
                     onConfirm: () => deleteJobMutation.mutate(id)
                   });
                 }}

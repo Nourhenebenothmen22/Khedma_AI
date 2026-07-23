@@ -13,6 +13,7 @@ services:
 
     # ── Build & Start ────────────────────────────────
     buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    preDeployCommand: npx prisma migrate deploy
     startCommand: node dist/app.js
 
     # ── Auto-Deploy ──────────────────────────────────

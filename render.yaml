@@ -28,6 +28,15 @@ services:
       - key: NODE_ENV
         value: production
 
+      # Demo/Staging mode: allows mock-dev-token-khedma to bypass JWT verification.
+      # Set to 'false' or remove when real authentication is implemented.
+      - key: ALLOW_MOCK_AUTH
+        value: true
+
+      # Netlify frontend URL for CORS — update if your Netlify domain changes
+      - key: frontend_URL
+        value: https://khedma-ai.netlify.app
+
       # Render assigns PORT automatically — no need to set it here.
       # Set in Render dashboard → Environment → Secret Files
       - key: DATABASE_URL

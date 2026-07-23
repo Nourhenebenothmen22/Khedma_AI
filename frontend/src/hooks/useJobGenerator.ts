@@ -16,6 +16,7 @@ interface UseJobGeneratorProps {
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   t: (key: string) => string;
   i18n: any;
+  onQuotaExceeded?: (quota?: any) => void;
 }
 
 export function useJobGenerator({
@@ -24,7 +25,8 @@ export function useJobGenerator({
   jobs,
   addToast,
   t,
-  i18n
+  i18n,
+  onQuotaExceeded
 }: UseJobGeneratorProps) {
   const queryClient = useQueryClient();
 
@@ -62,12 +64,26 @@ export function useJobGenerator({
     },
     onSuccess: (data) => {
       setActiveJobId(data.id);
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      addToast(t('generator.canvas.saved') || 'Draft saved successfully', 'success');
+
+      // Immediately update React Query Cache for instant 0ms UI update
+      queryClient.setQueryData<JobDescription[]>(['jobs'], (oldJobs) => {
+        if (!oldJobs) return [data];
+        const exists = oldJobs.some((j) => j.id === data.id);
+        if (exists) {
+          return oldJobs.map((j) => (j.id === data.id ? data : j));
+        }
+        return [data, ...oldJobs];
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['jobs'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['stats'], refetchType: 'all' });
+      const msg = data.isDraft === false 
+        ? (t('generator.canvas.templateSaved') || 'Template saved successfully')
+        : (t('generator.canvas.saved') || 'Draft saved successfully');
+      addToast(msg, 'success');
     },
     onError: (err: any) => {
-      addToast(err.message || 'Failed to save job draft', 'error');
+      addToast(err.message || 'Failed to save job', 'error');
     }
   });
 
@@ -80,10 +96,27 @@ export function useJobGenerator({
     addToast('Generation cancelled', 'info');
   }, [addToast]);
 
-  const autoSaveDraft = useCallback((sections: Record<string, any>) => {
-    if (!sections.title) return;
+  const handleSaveDraft = useCallback(() => {
+    const title = generatedSections.title || prompt.trim() || 'Untitled Role';
     const jobPayload: Partial<JobDescription> = {
-      title: sections.title,
+      title,
+      seniority,
+      location: location || 'Remote',
+      workType,
+      employmentType,
+      language: activeSettings?.language || 'en',
+      tone,
+      sections: generatedSections,
+      atsKeywords: generatedSections.atsKeywords || [],
+      isDraft: true
+    };
+    saveJobMutation.mutate(jobPayload);
+  }, [generatedSections, prompt, seniority, location, workType, employmentType, activeSettings?.language, tone, saveJobMutation]);
+
+  const autoSaveDraft = useCallback((sections: Record<string, any>) => {
+    const title = sections.title || prompt.trim() || 'Untitled Role';
+    const jobPayload: Partial<JobDescription> = {
+      title,
       seniority,
       location: location || 'Remote',
       workType,
@@ -95,7 +128,7 @@ export function useJobGenerator({
       isDraft: true
     };
     saveJobMutation.mutate(jobPayload);
-  }, [seniority, location, workType, employmentType, activeSettings?.language, tone, saveJobMutation]);
+  }, [prompt, seniority, location, workType, employmentType, activeSettings?.language, tone, saveJobMutation]);
 
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || !sectionsSchema) return;
@@ -107,18 +140,13 @@ export function useJobGenerator({
     abortControllerRef.current = controller;
 
     setIsGenerating(true);
+    setGeneratedSections({});
     streamBufferRef.current = '';
+    setActiveGeneratingModel(activeSettings?.model || 'gpt-4o-mini');
 
-    const initialSections: Record<string, any> = {};
-    sectionsSchema.forEach((s) => {
-      initialSections[s.key] = s.type === 'array' ? [] : '';
-    });
-    setGeneratedSections(initialSections);
-
-    setActiveJobId(null);
-    setEditingSection(null);
-
-    let currentSections = initialSections;
+    let lastRenderTime = 0;
+    let throttleTimer: any = null;
+    let currentSections: Record<string, any> = {};
 
     try {
       await generateJobStream(
@@ -137,13 +165,35 @@ export function useJobGenerator({
           if (event.chunk) {
             streamBufferRef.current += event.chunk;
             currentSections = parsePartialJSON(streamBufferRef.current, sectionsSchema);
-            setGeneratedSections(currentSections);
+
+            const now = Date.now();
+            if (now - lastRenderTime > 50) {
+              lastRenderTime = now;
+              setGeneratedSections(currentSections);
+            } else if (!throttleTimer) {
+              throttleTimer = setTimeout(() => {
+                throttleTimer = null;
+                lastRenderTime = Date.now();
+                setGeneratedSections(currentSections);
+              }, 50);
+            }
           }
           if (event.status === 'completed') {
+            if (throttleTimer) {
+              clearTimeout(throttleTimer);
+              throttleTimer = null;
+            }
+            setGeneratedSections(currentSections);
             setIsGenerating(false);
+            queryClient.invalidateQueries({ queryKey: ['stats'] });
+            queryClient.invalidateQueries({ queryKey: ['jobs'] });
             autoSaveDraft(currentSections);
           }
           if (event.error) {
+            if (throttleTimer) {
+              clearTimeout(throttleTimer);
+              throttleTimer = null;
+            }
             addToast(`Generation failed: ${event.error}`, 'error');
             setIsGenerating(false);
           }
@@ -151,18 +201,42 @@ export function useJobGenerator({
         controller.signal
       );
     } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('Stream generation aborted.');
-        return;
+      if (throttleTimer) {
+        clearTimeout(throttleTimer);
+        throttleTimer = null;
       }
-      addToast(`Connection failed: ${error.message || error}`, 'error');
+      if (error.name === 'AbortError') {
+        addToast('Generation stopped', 'info');
+      } else if (error.status === 429 || error.quota || (error.message && error.message.toLowerCase().includes('quota'))) {
+        if (onQuotaExceeded) {
+          onQuotaExceeded(error.quota);
+        } else {
+          addToast(error.message || 'Monthly quota exceeded. Please upgrade your plan.', 'error');
+        }
+      } else {
+        const errorMsg = error.message || 'An error occurred during generation';
+        addToast(errorMsg, 'error');
+      }
       setIsGenerating(false);
     } finally {
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
       }
     }
-  }, [prompt, sectionsSchema, seniority, location, workType, employmentType, tone, addToast, autoSaveDraft]);
+  }, [
+    prompt,
+    seniority,
+    location,
+    workType,
+    employmentType,
+    tone,
+    sectionsSchema,
+    activeSettings?.model,
+    addToast,
+    autoSaveDraft,
+    onQuotaExceeded,
+    queryClient
+  ]);
 
   const handleEditSection = useCallback((key: string, value: any) => {
     setEditingSection(key);
@@ -194,13 +268,13 @@ export function useJobGenerator({
 
     if (activeJobId) {
       const jobPayload: Partial<JobDescription> = {
-        title: updatedSections.title || 'Untitled Role',
+        title: updatedSections.title || prompt.trim() || 'Untitled Role',
         sections: updatedSections,
         atsKeywords: updatedSections.atsKeywords || []
       };
       saveJobMutation.mutate(jobPayload);
     }
-  }, [editValue, sectionsSchema, generatedSections, activeJobId, saveJobMutation]);
+  }, [editValue, sectionsSchema, generatedSections, activeJobId, saveJobMutation, prompt]);
 
   const handleRefiningAction = useCallback(async (
     key: string,
@@ -244,7 +318,7 @@ export function useJobGenerator({
 
       if (activeJobId) {
         const jobPayload: Partial<JobDescription> = {
-          title: updatedSections.title || 'Untitled Role',
+          title: updatedSections.title || prompt.trim() || 'Untitled Role',
           sections: updatedSections,
           atsKeywords: updatedSections.atsKeywords || []
         };
@@ -256,7 +330,7 @@ export function useJobGenerator({
     } finally {
       setIsRefining(null);
     }
-  }, [generatedSections, sectionsSchema, activeJobId, saveJobMutation, addToast, t]);
+  }, [generatedSections, sectionsSchema, activeJobId, saveJobMutation, addToast, t, prompt]);
 
   const handleToggleFavorite = useCallback(() => {
     if (!activeJobId) return;
@@ -265,11 +339,21 @@ export function useJobGenerator({
   }, [activeJobId, jobs, saveJobMutation]);
 
   const handleSaveFinal = useCallback(() => {
-    if (!activeJobId) return;
-    const currentJob = jobs?.find((j) => j.id === activeJobId);
-    const newDraftStatus = currentJob?.isDraft === false; // toggle back to draft, or finalize
-    saveJobMutation.mutate({ isDraft: newDraftStatus });
-  }, [activeJobId, jobs, saveJobMutation]);
+    const title = generatedSections.title || prompt.trim() || 'Untitled Role';
+    const jobPayload: Partial<JobDescription> = {
+      title,
+      seniority,
+      location: location || 'Remote',
+      workType,
+      employmentType,
+      language: activeSettings?.language || 'en',
+      tone,
+      sections: generatedSections,
+      atsKeywords: generatedSections.atsKeywords || [],
+      isDraft: false
+    };
+    saveJobMutation.mutate(jobPayload);
+  }, [generatedSections, prompt, seniority, location, workType, employmentType, activeSettings?.language, tone, saveJobMutation]);
 
   const copyToClipboard = useCallback((text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -310,7 +394,8 @@ export function useJobGenerator({
     setSeniority(job.seniority);
     setLocation(job.location);
     setWorkType(job.workType);
-    setEmploymentType(job.employmentType);
+    const normalizedEmp = job.employmentType === 'FullTime' ? 'Full-time' : job.employmentType === 'PartTime' ? 'Part-time' : job.employmentType;
+    setEmploymentType(normalizedEmp);
     setTone(job.tone);
     setGeneratedSections(job.sections);
   }, []);
@@ -350,6 +435,7 @@ export function useJobGenerator({
     copiedAll,
     handleGenerate,
     handleCancelGeneration,
+    handleSaveDraft,
     handleEditSection,
     handleSaveSection,
     handleRefiningAction,

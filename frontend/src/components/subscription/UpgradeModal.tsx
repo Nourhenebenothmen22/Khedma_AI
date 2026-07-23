@@ -46,41 +46,41 @@ export default function UpgradeModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           transition={{ duration: 0.2 }}
-          className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-8"
+          className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden my-auto"
         >
           {/* Top Header - Soft Blue SaaS Theme */}
-          <div className="relative p-6 sm:p-8 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white flex items-center justify-between">
+          <div className="relative p-5 sm:p-8 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white flex items-center justify-between shrink-0">
             <div className="space-y-1 pr-8">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-white/20 text-white backdrop-blur-md">
                   Subscription Quota Exceeded
                 </span>
                 <span className="text-xs font-semibold text-blue-100">Resets {getFormattedResetDate()}</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Upgrade Your Plan for Unlimited AI Power</h2>
-              <p className="text-sm text-blue-50/90 leading-relaxed">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight">Upgrade Your Plan for Unlimited AI Power</h2>
+              <p className="text-xs sm:text-sm text-blue-50/90 leading-relaxed hidden sm:block">
                 You've reached your monthly generation cap. Upgrade to continue crafting high-converting job descriptions without interruption.
               </p>
             </div>
             <button
               onClick={onClose}
               disabled={loadingPlan !== null}
-              className="absolute top-6 right-6 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0 disabled:opacity-50"
+              className="absolute top-5 right-5 sm:top-6 sm:right-6 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0 disabled:opacity-50"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
 
           {/* Pricing Grid */}
-          <div className="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="p-4 sm:p-6 lg:p-8 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 overflow-y-auto">
             {/* FREE TIER */}
-            <div className="p-6 rounded-2xl bg-slate-50/80 border border-slate-200 flex flex-col justify-between space-y-6">
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-50/80 border border-slate-200 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
@@ -121,7 +121,7 @@ export default function UpgradeModal({
             </div>
 
             {/* PRO TIER - HIGHLIGHTED SOFT BLUE */}
-            <div className="relative p-6 rounded-2xl bg-gradient-to-b from-blue-50/50 to-white border-2 border-blue-600 shadow-xl shadow-blue-500/10 flex flex-col justify-between space-y-6">
+            <div className="relative p-5 sm:p-6 rounded-2xl bg-gradient-to-b from-blue-50/50 to-white border-2 border-blue-600 shadow-xl shadow-blue-500/10 flex flex-col justify-between space-y-6">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-extrabold uppercase tracking-wider shadow-sm flex items-center gap-1">
                 <Crown size={12} />
                 <span>Most Popular</span>
@@ -177,7 +177,7 @@ export default function UpgradeModal({
             </div>
 
             {/* ENTERPRISE TIER */}
-            <div className="p-6 rounded-2xl bg-slate-50/80 border border-slate-200 flex flex-col justify-between space-y-6">
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-50/80 border border-slate-200 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>

@@ -2,11 +2,15 @@ import { Router } from 'express';
 import { aiController } from '../controllers/ai.controller.js';
 import { validateBody } from '../middleware/validate.js';
 import { generateSchema, refineSchema, settingsSchema } from '../middleware/schemas.js';
-import { authMiddleware } from '../middleware/auth.middleware.js';
+import { authMiddleware, requireAdmin } from '../middleware/auth.middleware.js';
+import { enforceQuota } from '../middleware/quota.middleware.js';
 import { aiRateLimiter } from '../middleware/rateLimiters.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 
 const router = Router();
+
+// Apply authMiddleware globally to all AI endpoints
+router.use(authMiddleware);
 
 /**
  * GET /api/v1/ai/schema
@@ -29,19 +33,27 @@ router.get('/settings', asyncHandler(aiController.getSettings));
 /**
  * PUT /api/v1/ai/settings
  * Updates active provider, model, and target language configurations in the database.
+ * Protected: Requires ADMIN role.
  */
-router.put('/settings', validateBody(settingsSchema), asyncHandler(aiController.updateSettings));
+router.put('/settings', requireAdmin, validateBody(settingsSchema), asyncHandler(aiController.updateSettings));
 
 /**
  * POST /api/v1/ai/generate
  * Streams a dynamically built JSON job description using backend schema and settings.
+ * Enforces monthly subscription generation quota.
  */
-router.post('/generate', aiRateLimiter, authMiddleware, validateBody(generateSchema), asyncHandler(aiController.generate));
+router.post('/generate', aiRateLimiter, enforceQuota, validateBody(generateSchema), asyncHandler(aiController.generate));
 
 /**
  * POST /api/v1/ai/refine-section
  * Refines specific sections using settings configurations.
  */
 router.post('/refine-section', aiRateLimiter, validateBody(refineSchema), asyncHandler(aiController.refineSection));
+
+/**
+ * POST /api/v1/ai/upgrade
+ * Temporary paymentless simulation flow for upgrading user subscription plan.
+ */
+router.post('/upgrade', asyncHandler(aiController.upgradePlan));
 
 export default router;

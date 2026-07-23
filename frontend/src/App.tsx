@@ -96,7 +96,7 @@ function MainApp() {
     staleTime: 5 * 60 * 1000
   });
 
-  const { data: activeSettings, isLoading: isSettingsLoading } = useQuery<AISettings>({
+  const { data: activeSettings } = useQuery<AISettings>({
     queryKey: ['aiSettings'],
     queryFn: getSettings,
     retry: 2,

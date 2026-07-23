@@ -23,8 +23,14 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
   const token = parts[1];
 
-  // Development & Integration test fallback token handling (disabled in production)
-  const isDevOrTestMode = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  // Development, test, and explicitly-enabled demo-mode fallback
+  // ALLOW_MOCK_AUTH=true must be set in production env to accept mock tokens (demo/staging only)
+  const isDevOrTestMode =
+    process.env.NODE_ENV === 'test' ||
+    process.env.NODE_ENV === 'development' ||
+    !process.env.NODE_ENV ||
+    process.env.ALLOW_MOCK_AUTH === 'true';
+
   if ((token === 'mock-dev-token-khedma' && isDevOrTestMode) || process.env.NODE_ENV === 'test') {
     req.user = {
       id: req.headers['x-user-id'] as string || 'dev-user-id',

@@ -5,6 +5,7 @@ export interface UserPayload {
   email: string;
   role: Role | 'ADMIN' | 'USER';
   tenantId: string;
+  plan?: string;
 }
 
 declare global {

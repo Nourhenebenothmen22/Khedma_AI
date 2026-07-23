@@ -1,38 +1,39 @@
 import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../config/db.js';
+import { jobsRepository } from '../repositories/jobs.repository.js';
 import { AppError } from '../middleware/errors.js';
+
+function normalizeEmploymentType(type?: string): any {
+  if (!type) return 'FullTime';
+  if (type === 'Full-time' || type === 'FullTime') return 'FullTime';
+  if (type === 'Part-time' || type === 'PartTime') return 'PartTime';
+  if (type === 'Contract') return 'Contract';
+  if (type === 'Internship') return 'Internship';
+  return 'FullTime';
+}
 
 export class JobsController {
   getJobs = async (req: Request, res: Response, next: NextFunction) => {
-    const { isFavorite, isDraft } = req.query;
+    const tenantId = req.user?.tenantId || 'dev-tenant-id';
+    const { isFavorite, isDraft, page, limit } = req.query;
 
-    const where: any = {};
-    if (isFavorite !== undefined) {
-      where.isFavorite = isFavorite === 'true';
-    }
-    if (isDraft !== undefined) {
-      where.isDraft = isDraft === 'true';
-    }
-
-    const jobs = await prisma.jobDescription.findMany({
-      where,
-      orderBy: { updatedAt: 'desc' }
+    const result = await jobsRepository.findAll(tenantId, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      isFavorite: isFavorite !== undefined ? isFavorite === 'true' : undefined,
+      isDraft: isDraft !== undefined ? isDraft === 'true' : undefined
     });
 
-    res.json({ jobs });
+    res.json({
+      jobs: result.jobs,
+      pagination: result.pagination
+    });
   };
 
   getJobById = async (req: Request, res: Response, next: NextFunction) => {
+    const tenantId = req.user?.tenantId || 'dev-tenant-id';
     const { id } = req.params;
 
-    const job = await prisma.jobDescription.findUnique({
-      where: { id },
-      include: {
-        versions: {
-          orderBy: { versionNumber: 'desc' }
-        }
-      }
-    });
+    const job = await jobsRepository.findById(id, tenantId);
 
     if (!job) {
       throw new AppError(404, 'Job description not found');
@@ -42,53 +43,47 @@ export class JobsController {
   };
 
   createJob = async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.id || 'dev-user-id';
+    const tenantId = req.user?.tenantId || 'dev-tenant-id';
     const { title, seniority, location, workType, employmentType, language, tone, sections, atsKeywords, isFavorite, isDraft } = req.body;
 
-    const job = await prisma.jobDescription.create({
-      data: {
-        title,
-        seniority,
-        location,
-        workType,
-        employmentType,
-        language,
-        tone,
-        sections,
-        atsKeywords,
-        isFavorite,
-        isDraft,
-        versions: {
-          create: {
-            versionNumber: 1,
-            sections
-          }
-        }
-      }
+    const normalizedEmployment = normalizeEmploymentType(employmentType);
+
+    const job = await jobsRepository.create({
+      userId,
+      tenantId,
+      title,
+      seniority,
+      location,
+      workType,
+      employmentType: normalizedEmployment,
+      language,
+      tone,
+      sections,
+      atsKeywords,
+      isFavorite,
+      isDraft
     });
 
     res.status(201).json({ job });
   };
 
   updateJob = async (req: Request, res: Response, next: NextFunction) => {
+    const tenantId = req.user?.tenantId || 'dev-tenant-id';
     const { id } = req.params;
     const { title, seniority, location, workType, employmentType, language, tone, sections, atsKeywords, isFavorite, isDraft } = req.body;
 
-    // Check if job exists
-    const existingJob = await prisma.jobDescription.findUnique({
-      where: { id }
-    });
-
+    const existingJob = await jobsRepository.findById(id, tenantId);
     if (!existingJob) {
       throw new AppError(404, 'Job description not found');
     }
 
-    // Build data update
     const updateData: any = {};
     if (title !== undefined) updateData.title = title;
     if (seniority !== undefined) updateData.seniority = seniority;
     if (location !== undefined) updateData.location = location;
     if (workType !== undefined) updateData.workType = workType;
-    if (employmentType !== undefined) updateData.employmentType = employmentType;
+    if (employmentType !== undefined) updateData.employmentType = normalizeEmploymentType(employmentType);
     if (language !== undefined) updateData.language = language;
     if (tone !== undefined) updateData.tone = tone;
     if (sections !== undefined) updateData.sections = sections;
@@ -97,38 +92,9 @@ export class JobsController {
     if (isDraft !== undefined) updateData.isDraft = isDraft;
 
     try {
-      const updatedJob = await prisma.$transaction(async (tx) => {
-        // 1. Fetch latest version number within transaction scope
-        const latestVersion = await tx.descriptionVersion.findFirst({
-          where: { jobDescriptionId: id },
-          orderBy: { versionNumber: 'desc' },
-          select: { versionNumber: true }
-        });
-        const nextVersion = (latestVersion?.versionNumber || 0) + 1;
-
-        // 2. Perform main update
-        const job = await tx.jobDescription.update({
-          where: { id },
-          data: updateData
-        });
-
-        // 3. Only create a history version if sections are actually being modified
-        if (sections !== undefined) {
-          await tx.descriptionVersion.create({
-            data: {
-              jobDescriptionId: id,
-              versionNumber: nextVersion,
-              sections
-            }
-          });
-        }
-
-        return job;
-      });
-
+      const updatedJob = await jobsRepository.update(id, tenantId, updateData);
       res.json({ job: updatedJob });
     } catch (error: any) {
-      // Handle Prisma unique constraint failure code (P2002) for race condition
       if (error.code === 'P2002') {
         throw new AppError(409, 'Save conflict. Another update was processed concurrently. Please retry.');
       }
@@ -137,20 +103,15 @@ export class JobsController {
   };
 
   deleteJob = async (req: Request, res: Response, next: NextFunction) => {
+    const tenantId = req.user?.tenantId || 'dev-tenant-id';
     const { id } = req.params;
 
-    // Check if job exists
-    const existingJob = await prisma.jobDescription.findUnique({
-      where: { id }
-    });
-
+    const existingJob = await jobsRepository.findById(id, tenantId);
     if (!existingJob) {
       throw new AppError(404, 'Job description not found');
     }
 
-    await prisma.jobDescription.delete({
-      where: { id }
-    });
+    await jobsRepository.softDelete(id, tenantId);
 
     res.json({ message: 'Job description successfully deleted' });
   };

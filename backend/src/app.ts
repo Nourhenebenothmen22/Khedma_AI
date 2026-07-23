@@ -48,8 +48,25 @@ app.use(cors({
 app.use(express.json());
 
 // Utility health check endpoint (exempt from rate limits and auth)
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'AI Job Description Generator Backend is running.' });
+app.get('/health', async (req, res) => {
+  try {
+    if (process.env.NODE_ENV !== 'test') {
+      await prisma.$queryRaw`SELECT 1`;
+    }
+    res.json({
+      status: 'ok',
+      message: 'AI Job Description Generator Backend is running.',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Backend health check failed',
+      database: 'disconnected',
+      error: error?.message || 'Database connection failed'
+    });
+  }
 });
 
 // Apply global rate limiting to all /api/v1 endpoints

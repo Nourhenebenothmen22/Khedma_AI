@@ -3,8 +3,12 @@ import { jobsController } from '../controllers/jobs.controller.js';
 import { validateBody } from '../middleware/validate.js';
 import { createJobSchema, updateJobSchema } from '../middleware/schemas.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = Router();
+
+// Apply authMiddleware globally to all jobs CRUD endpoints
+router.use(authMiddleware);
 
 /**
  * GET /api/v1/jobs

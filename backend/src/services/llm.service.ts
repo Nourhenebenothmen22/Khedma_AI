@@ -206,6 +206,37 @@ Modify the content accordingly:`;
       headers['X-Title'] = 'AI Job Description Generator';
     } else if (provider === 'openai') {
       headers['Authorization'] = `Bearer ${apiKey}`;
+    } else if (provider === 'claude') {
+      headers['x-api-key'] = apiKey;
+      headers['anthropic-version'] = '2023-06-01';
+
+      const anthropicBody = {
+        model: rawModelId,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        max_tokens: 2000,
+        temperature: 0.3
+      };
+
+      try {
+        const response = await fetch(`${baseUrl}/messages`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(anthropicBody),
+          signal
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`LLM provider error: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json() as any;
+        return data.content?.[0]?.text || '';
+      } catch (error) {
+        console.error('Refinement error in Anthropic Provider:', error);
+        throw error;
+      }
     }
 
     const requestBody = {
@@ -234,7 +265,7 @@ Modify the content accordingly:`;
       const data = await response.json() as any;
       return data.choices?.[0]?.message?.content || '';
     } catch (error) {
-      console.error('Refinement error in OpenRouterLLMProvider:', error);
+      console.error('Refinement error in LLM Provider:', error);
       throw error;
     }
   }

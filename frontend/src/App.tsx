@@ -238,27 +238,27 @@ function MainApp() {
   const uiLang = i18n.language as 'en' | 'fr' | 'ar';
 
   return (
-    <div dir={isRtl ? 'rtl' : 'ltr'} className="min-h-screen flex flex-col bg-slate-50/50 text-slate-800 antialiased transition-all duration-150">
+    <div dir={isRtl ? 'rtl' : 'ltr'} className="min-h-screen flex flex-col bg-slate-50/50 text-slate-800 antialiased max-w-full overflow-x-hidden transition-all duration-150">
       
       {/* HEADER */}
-      <header className="sticky top-0 z-40 w-full bg-white/85 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-6 py-4 print:hidden">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-40 w-full bg-white/85 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 print:hidden">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <img
             src="/Khedma_logo.png"
-            className="h-10 w-10 object-contain rounded-full shadow-md border border-slate-200 bg-white p-0.5"
+            className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-full shadow-md border border-slate-200 bg-white p-0.5"
             alt="Khedma AI Logo"
           />
           <div>
-            <h1 className="text-xl font-extrabold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent leading-none">
+            <h1 className="text-lg sm:text-xl font-extrabold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent leading-none">
               Khedma AI
             </h1>
-            <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase leading-none">Recruitment Builder</span>
+            <span className="text-[9px] sm:text-[10px] text-slate-400 font-semibold tracking-wider uppercase leading-none block mt-0.5">Recruitment Builder</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {activeSettings && providers && (
-            <div className="hidden md:flex items-center gap-2 bg-slate-100 border border-slate-200/50 rounded-full px-3 py-1 text-[11px] text-slate-600 font-medium">
+            <div className="hidden lg:flex items-center gap-2 bg-slate-100 border border-slate-200/50 rounded-full px-3 py-1 text-[11px] text-slate-600 font-medium">
               <Sparkles size={11} className="text-violet-500 animate-pulse" />
               <span>
                 {providers.find(p => p.id === activeSettings.provider)?.name} •{' '}
@@ -270,14 +270,14 @@ function MainApp() {
           <div className="relative" ref={langRef}>
             <button
               onClick={() => setLangOpen(!langOpen)}
-              className="flex items-center gap-2.5 bg-white hover:bg-slate-50 px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 shadow-sm text-slate-700 transition-colors cursor-pointer"
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 shadow-sm text-slate-700 transition-colors cursor-pointer"
             >
-              <img src={`https://flagcdn.com/w20/${langInfo.code}.png`} className="w-5 h-3.5 object-cover rounded shadow-sm border border-slate-200/50" alt="" />
-              <span>{langInfo.label}</span>
+              <img src={`https://flagcdn.com/w20/${langInfo.code}.png`} className="w-4 sm:w-5 h-3 sm:h-3.5 object-cover rounded shadow-sm border border-slate-200/50" alt="" />
+              <span className="hidden sm:inline">{langInfo.label}</span>
               <span className="text-[9px] text-slate-400">▼</span>
             </button>
             {langOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-50 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-50 overflow-hidden">
                 <button
                   onClick={() => changeLanguage('en')}
                   className={`w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-semibold flex items-center justify-between cursor-pointer ${
@@ -321,10 +321,10 @@ function MainApp() {
       </header>
 
       {/* CORE LAYOUT DISPLAY */}
-      <div className="flex flex-1 relative">
+      <div className="flex flex-1 relative min-h-0">
         
-        {/* SIDEBAR NAVIGATION */}
-        <aside className="w-64 bg-white border-r border-slate-100 hidden md:flex flex-col justify-between py-6 print:hidden">
+        {/* DESKTOP SIDEBAR NAVIGATION */}
+        <aside className="w-64 bg-white border-r border-slate-100 hidden md:flex flex-col justify-between py-6 shrink-0 print:hidden">
           <nav className="space-y-1.5 px-4">
             <button
               onClick={() => setActiveTab('dashboard')}
@@ -384,7 +384,7 @@ function MainApp() {
         </aside>
 
         {/* MAIN DISPLAY CANVAS */}
-        <main className="flex-1 overflow-y-auto px-8 py-8 print:p-0 print:overflow-visible">
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-24 md:pb-8 max-w-full print:p-0 print:overflow-visible">
           <AnimatePresence mode="wait">
             
             {activeTab === 'dashboard' && (
@@ -483,8 +483,51 @@ function MainApp() {
         </main>
       </div>
 
+      {/* MOBILE BOTTOM NAVIGATION BAR */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2 px-3 flex justify-around items-center md:hidden print:hidden shadow-lg">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-colors ${
+            activeTab === 'dashboard' ? 'text-violet-600 bg-violet-50' : 'text-slate-500'
+          }`}
+        >
+          <LayoutDashboard size={18} />
+          <span>{t('nav.dashboard')}</span>
+        </button>
+
+        <button
+          onClick={handleResetGenerator}
+          className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-colors ${
+            activeTab === 'generator' ? 'text-violet-600 bg-violet-50' : 'text-slate-500'
+          }`}
+        >
+          <Briefcase size={18} />
+          <span>{t('nav.generator')}</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('drafts')}
+          className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-colors ${
+            activeTab === 'drafts' ? 'text-violet-600 bg-violet-50' : 'text-slate-500'
+          }`}
+        >
+          <History size={18} />
+          <span>{t('nav.drafts')}</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase transition-colors ${
+            activeTab === 'settings' ? 'text-violet-600 bg-violet-50' : 'text-slate-500'
+          }`}
+        >
+          <Settings size={18} />
+          <span>{t('nav.settings')}</span>
+        </button>
+      </nav>
+
       {/* FOOTER */}
-      <footer className="py-4 text-center text-xs text-slate-500 border-t border-slate-100 mt-auto bg-white font-semibold print:hidden">
+      <footer className="hidden md:block py-4 text-center text-xs text-slate-500 border-t border-slate-100 mt-auto bg-white font-semibold print:hidden">
         &copy; {new Date().getFullYear()} Khedma AI. Built for HR professionals. Pure light theme.
       </footer>
 

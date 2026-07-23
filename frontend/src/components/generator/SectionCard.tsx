@@ -1,3 +1,4 @@
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Copy, Check, Sparkles, RefreshCw } from 'lucide-react';
 import type { JobDescriptionSectionSchema } from '../../services/api.js';
@@ -20,7 +21,7 @@ interface SectionCardProps {
   uiLang: 'en' | 'fr' | 'ar';
 }
 
-export default function SectionCard({
+function SectionCard({
   section,
   value,
   isRtl,
@@ -127,3 +128,6 @@ export default function SectionCard({
     </motion.div>
   );
 }
+
+export default React.memo(SectionCard);
+

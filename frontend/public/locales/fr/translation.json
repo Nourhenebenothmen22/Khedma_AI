@@ -1,4 +1,12 @@
 {
+  "brand": {
+    "title": "Khedma AI",
+    "subtitle": "Suite RH d'Entreprise",
+    "systemStatus": "Système IA Production"
+  },
+  "app": {
+    "title": "Khedma AI — Suite RH d'Entreprise"
+  },
   "nav": {
     "dashboard": "Tableau de Bord",
     "generator": "Générateur IA",

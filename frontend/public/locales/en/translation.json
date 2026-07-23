@@ -1,4 +1,12 @@
 {
+  "brand": {
+    "title": "Khedma AI",
+    "subtitle": "Enterprise Job Suite",
+    "systemStatus": "Production AI System"
+  },
+  "app": {
+    "title": "Khedma AI — Enterprise Job Suite"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "generator": "AI Generator",

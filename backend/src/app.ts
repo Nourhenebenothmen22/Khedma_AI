@@ -28,19 +28,24 @@ app.use(helmet());
 const PORT = process.env.PORT || 5000;
 const frontend_URL = process.env.frontend_URL || 'http://localhost:5173';
 
-// Setup CORS with configurable origins
+// Setup CORS with configurable origins (supporting Netlify and localhost)
 const allowedOrigins = frontend_URL.split(',').map(url => url.trim());
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+    if (
+      !origin ||
+      allowedOrigins.indexOf(origin) !== -1 ||
+      allowedOrigins.includes('*') ||
+      origin.endsWith('.netlify.app') ||
+      origin.includes('localhost')
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-plan', 'x-plan'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-plan', 'x-plan', 'x-tenant-id', 'x-user-id', 'x-user-role', 'x-user-email'],
   credentials: true
 }));
 

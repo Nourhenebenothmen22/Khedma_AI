@@ -116,36 +116,52 @@ export class JobsRepository {
   }
 
   async update(id: string, tenantId: string, updateData: any): Promise<JobDescription> {
-    // 1. Fetch latest version number within tenant scope
-    const latestVersion = await prisma.descriptionVersion.findFirst({
-      where: { jobDescriptionId: id, tenantId },
-      orderBy: { versionNumber: 'desc' },
-      select: { versionNumber: true }
+    // 1. Verify tenant isolation & existence before mutation
+    const existingJob = await prisma.jobDescription.findFirst({
+      where: { id, tenantId, deletedAt: null }
     });
-    const nextVersion = (latestVersion?.versionNumber || 0) + 1;
-
-    // 2. Perform main update
-    const updatedJob = await prisma.jobDescription.update({
-      where: { id },
-      data: updateData
-    });
-
-    // 3. Create a version record if sections are modified
-    if (updateData.sections !== undefined) {
-      await prisma.descriptionVersion.create({
-        data: {
-          tenantId,
-          jobDescriptionId: id,
-          versionNumber: nextVersion,
-          sections: updateData.sections
-        }
-      });
+    if (!existingJob) {
+      throw new Error('Job description not found or access denied');
     }
 
-    return updatedJob;
+    // 2. Perform atomic update & version snapshot in transaction
+    return prisma.$transaction(async (tx) => {
+      const latestVersion = await tx.descriptionVersion.findFirst({
+        where: { jobDescriptionId: id, tenantId },
+        orderBy: { versionNumber: 'desc' },
+        select: { versionNumber: true }
+      });
+      const nextVersion = (latestVersion?.versionNumber || 0) + 1;
+
+      const updatedJob = await tx.jobDescription.update({
+        where: { id },
+        data: updateData
+      });
+
+      if (updateData.sections !== undefined) {
+        await tx.descriptionVersion.create({
+          data: {
+            tenantId,
+            jobDescriptionId: id,
+            versionNumber: nextVersion,
+            sections: updateData.sections
+          }
+        });
+      }
+
+      return updatedJob;
+    });
   }
 
   async softDelete(id: string, tenantId: string): Promise<JobDescription> {
+    // Verify tenant scope before deletion
+    const existingJob = await prisma.jobDescription.findFirst({
+      where: { id, tenantId, deletedAt: null }
+    });
+    if (!existingJob) {
+      throw new Error('Job description not found or access denied');
+    }
+
     return prisma.jobDescription.update({
       where: { id },
       data: {

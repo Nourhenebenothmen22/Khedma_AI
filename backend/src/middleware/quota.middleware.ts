@@ -3,7 +3,9 @@ import { quotaService } from '../services/quota.service.js';
 
 export async function enforceQuota(req: Request, res: Response, next: NextFunction): Promise<void> {
   const tenantId = req.user?.tenantId || 'dev-tenant-id';
-  const plan = (req.headers['x-user-plan'] as string) || 'FREE';
+  const isDevOrTestMode = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  const headerPlan = isDevOrTestMode ? (req.headers['x-user-plan'] as string) : undefined;
+  const plan = req.user?.plan || headerPlan || 'FREE';
 
   try {
     const quota = await quotaService.checkQuota(tenantId, plan);
